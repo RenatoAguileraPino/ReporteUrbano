@@ -4,21 +4,22 @@ import { LocationBar } from './components/LocationBar';
 import { BottomButtons } from './components/BottomButtons';
 import { NuevaDenunciaModal } from './components/NuevaDenunciaModal';
 import { VerDenunciasModal } from './components/VerDenunciasModal';
+import { DenunciaDetailModal } from './components/DenunciaDetailModal';
 
 export default function Home() {
   const [showDenunciaModal, setShowDenunciaModal] = useState(false);
   const [showDenunciasModal, setShowDenunciasModal] = useState(false);
+  const [showDenunciasCercanasModal, setShowDenunciasCercanasModal] = useState(false);
+  const [showMisDenunciasModal, setShowMisDenunciasModal] = useState(false);
 
   const handleDenunciasCercanas = () => {
     setShowDenunciasModal(false);
-    // Aquí irá la lógica para mostrar denuncias cercanas
-    console.log('Mostrando denuncias cercanas');
+    setShowDenunciasCercanasModal(true);
   };
 
   const handleMisDenuncias = () => {
     setShowDenunciasModal(false);
-    // Aquí irá la lógica para mostrar mis denuncias
-    console.log('Mostrando mis denuncias');
+    setShowMisDenunciasModal(true);
   };
 
   const handleHacerDenuncia = () => {
@@ -52,6 +53,24 @@ export default function Home() {
           onClose={() => setShowDenunciasModal(false)}
           onDenunciasCercanas={handleDenunciasCercanas}
           onMisDenuncias={handleMisDenuncias}
+        />
+
+        <DenunciaDetailModal
+          visible={showDenunciasCercanasModal}
+          onBack={() => {
+            setShowDenunciasCercanasModal(false);
+            setShowDenunciasModal(true);
+          }}
+          title="Denuncias Cercanas"
+        />
+
+        <DenunciaDetailModal
+          visible={showMisDenunciasModal}
+          onBack={() => {
+            setShowMisDenunciasModal(false);
+            setShowDenunciasModal(true);
+          }}
+          title="Mis Denuncias"
         />
       </ImageBackground>
     </SafeAreaView>
