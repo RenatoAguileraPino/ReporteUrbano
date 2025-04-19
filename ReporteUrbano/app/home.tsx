@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ImageBackground, Platform, SafeAreaView } from 'react-native';
+import { View, StyleSheet, Platform, SafeAreaView } from 'react-native';
+import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { LocationBar } from './components/LocationBar';
 import { BottomButtons } from './components/BottomButtons';
 import { NuevaDenunciaModal } from './components/NuevaDenunciaModal';
@@ -11,6 +13,52 @@ export default function Home() {
   const [showDenunciasModal, setShowDenunciasModal] = useState(false);
   const [showDenunciasCercanasModal, setShowDenunciasCercanasModal] = useState(false);
   const [showMisDenunciasModal, setShowMisDenunciasModal] = useState(false);
+  const [userLocation, setUserLocation] = useState({
+    latitude: -33.4489,
+    longitude: -70.6483,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Permission to access location was denied');
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      });
+
+      // Suscribirse a actualizaciones de ubicación
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 5000,
+          distanceInterval: 10,
+        },
+        (location) => {
+          setUserLocation(prev => ({
+            ...prev,
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          }));
+        }
+      );
+
+      return () => {
+        if (subscription) {
+          subscription.remove();
+        }
+      };
+    })();
+  }, []);
 
   const handleDenunciasCercanas = () => {
     setShowDenunciasModal(false);
@@ -29,13 +77,17 @@ export default function Home() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ImageBackground
-        source={require('../assets/images/mapaejemplo.png')}
-        style={styles.background}
-        resizeMode="cover"
-      >
-        <View style={styles.container}>
-          <LocationBar location="Pedro Aguirre Cerda" />
+      <View style={styles.container}>
+        <LocationBar location="Pedro Aguirre Cerda" />
+        
+        <View style={styles.mapContainer}>
+          <MapView
+            style={styles.map}
+            provider={PROVIDER_GOOGLE}
+            initialRegion={userLocation}
+            showsUserLocation={true}
+            showsMyLocationButton={true}
+          />
         </View>
 
         <BottomButtons
@@ -72,7 +124,7 @@ export default function Home() {
           }}
           title="Mis Denuncias"
         />
-      </ImageBackground>
+      </View>
     </SafeAreaView>
   );
 }
@@ -82,15 +134,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  background: {
+  container: {
+    flex: 1,
+  },
+  mapContainer: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  map: {
     flex: 1,
     width: '100%',
     height: '100%',
-  },
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingHorizontal: 20,
   },
 }); 
