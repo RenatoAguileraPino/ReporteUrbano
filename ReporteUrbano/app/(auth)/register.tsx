@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
-import { AuthInput } from '../components/AuthInput';
-import { AuthButton } from '../components/AuthButton';
+import AuthInput from '../components/AuthInput';
+import AuthButton from '../components/AuthButton';
 import AuthLink from '../components/AuthLink';
 
 export default function Register() {

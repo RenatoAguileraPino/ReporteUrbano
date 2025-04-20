@@ -6,11 +6,11 @@ interface LocationBarProps {
   location: string;
 }
 
-export const LocationBar: React.FC<LocationBarProps> = ({ location }) => {
+const LocationBar: React.FC<LocationBarProps> = ({ location }) => {
   return (
     <View style={styles.container}>
       <MaterialIcons name="location-on" size={24} color="#007AFF" />
-      <Text style={styles.text}>{location}</Text>
+      <Text style={styles.text} numberOfLines={2}>{location}</Text>
     </View>
   );
 };
@@ -32,10 +32,15 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
     width: '100%',
+    minHeight: 50,
   },
   text: {
     fontSize: 16,
     fontWeight: '500',
     marginLeft: 8,
+    flex: 1,
+    flexWrap: 'wrap',
   },
-}); 
+});
+
+export default LocationBar; 

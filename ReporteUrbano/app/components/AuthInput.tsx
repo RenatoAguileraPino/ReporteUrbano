@@ -5,7 +5,7 @@ interface AuthInputProps extends TextInputProps {
   placeholder: string;
 }
 
-export const AuthInput: React.FC<AuthInputProps> = ({
+const AuthInput: React.FC<AuthInputProps> = ({
   placeholder,
   ...props
 }) => {
@@ -31,4 +31,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
-}); 
+});
+
+export default AuthInput; 

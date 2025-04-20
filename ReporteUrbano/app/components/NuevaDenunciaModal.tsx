@@ -20,7 +20,7 @@ interface NuevaDenunciaModalProps {
   onClose: () => void;
 }
 
-export const NuevaDenunciaModal: React.FC<NuevaDenunciaModalProps> = ({ visible, onClose }) => {
+const NuevaDenunciaModal: React.FC<NuevaDenunciaModalProps> = ({ visible, onClose }) => {
   const [hasPhoto, setHasPhoto] = useState(false);
   const [eventType, setEventType] = useState('');
   const [comments, setComments] = useState('');
@@ -243,4 +243,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-}); 
+});
+
+export default NuevaDenunciaModal; 

@@ -6,7 +6,7 @@ interface BottomButtonsProps {
   onVerDenuncias: () => void;
 }
 
-export const BottomButtons: React.FC<BottomButtonsProps> = ({
+const BottomButtons: React.FC<BottomButtonsProps> = ({
   onHacerDenuncia,
   onVerDenuncias,
 }) => {
@@ -79,4 +79,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#007AFF',
   },
-}); 
+});
+
+export default BottomButtons; 

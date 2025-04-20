@@ -9,7 +9,7 @@ interface InputFieldProps {
   placeholder?: string;
 }
 
-export const InputField: React.FC<InputFieldProps> = ({
+const InputField: React.FC<InputFieldProps> = ({
   label,
   value,
   onChangeText,
@@ -48,4 +48,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
-}); 
+});
+
+export default InputField; 

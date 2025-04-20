@@ -7,7 +7,7 @@ interface DenunciasDropdownProps {
   onMisDenuncias: () => void;
 }
 
-export const DenunciasDropdown: React.FC<DenunciasDropdownProps> = ({
+const DenunciasDropdown: React.FC<DenunciasDropdownProps> = ({
   onClose,
   onDenunciasCercanas,
   onMisDenuncias,
@@ -71,4 +71,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-}); 
+});
+
+export default DenunciasDropdown; 

@@ -17,7 +17,7 @@ interface VerDenunciasModalProps {
   onMisDenuncias: () => void;
 }
 
-export const VerDenunciasModal: React.FC<VerDenunciasModalProps> = ({ 
+const VerDenunciasModal: React.FC<VerDenunciasModalProps> = ({ 
   visible, 
   onClose, 
   onDenunciasCercanas, 
@@ -141,4 +141,6 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
   },
-}); 
+});
+
+export default VerDenunciasModal; 

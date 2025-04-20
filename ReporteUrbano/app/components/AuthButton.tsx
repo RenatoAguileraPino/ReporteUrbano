@@ -7,7 +7,7 @@ interface AuthButtonProps {
   variant?: 'primary' | 'secondary';
 }
 
-export const AuthButton: React.FC<AuthButtonProps> = ({
+const AuthButton: React.FC<AuthButtonProps> = ({
   title,
   onPress,
   variant = 'primary',

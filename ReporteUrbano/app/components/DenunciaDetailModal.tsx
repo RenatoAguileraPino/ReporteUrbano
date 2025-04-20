@@ -15,7 +15,7 @@ interface DenunciaDetailModalProps {
   title: string;
 }
 
-export const DenunciaDetailModal: React.FC<DenunciaDetailModalProps> = ({ 
+const DenunciaDetailModal: React.FC<DenunciaDetailModalProps> = ({ 
   visible, 
   onBack,
   title
@@ -96,4 +96,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 20,
   },
-}); 
+});
+
+export default DenunciaDetailModal; 
