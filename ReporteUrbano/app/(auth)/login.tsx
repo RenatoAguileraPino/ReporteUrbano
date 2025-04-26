@@ -9,11 +9,37 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = () => {
-    // Aquí irá la lógica de autenticación
-    console.log('Login attempt with:', { email, password });
-    router.replace('/home');
-  };
+  const handleLogin = async () => {
+    if (!email || !password) {
+      alert('Por favor, completa todos los campos.');
+      return;
+    }
+  
+    try {
+      const response = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: email,
+          password: password,
+        }),
+      });
+  
+      const data = await response.json();
+  
+      if (response.ok && data.success) {
+        alert(data.message || 'Inicio de sesión exitoso');
+        router.replace('/home');
+      } else {
+        alert(data.message || 'Credenciales incorrectas');
+      }
+    } catch (error) {
+      console.error('Error al iniciar sesión:', error);
+      alert('Error al conectar con el servidor');
+    }
+  };  
 
   return (
     <View style={styles.container}>
@@ -25,10 +51,10 @@ export default function Login() {
         <AuthInput
           value={email}
           onChangeText={setEmail}
-          placeholder="Ingresa tu correo electrónico"
-          keyboardType="email-address"
+          placeholder="Ingresa tu nombre de usuario" // más fiel al campo username
           autoCapitalize="none"
         />
+
 
         <AuthInput
           value={password}

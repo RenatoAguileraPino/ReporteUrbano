@@ -1,23 +1,49 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
 import AuthInput from '../components/AuthInput';
 import AuthButton from '../components/AuthButton';
 import AuthLink from '../components/AuthLink';
 
 export default function Register() {
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleRegister = () => {
-    // Aquí irá la lógica de registro
+  const handleRegister = async () => {
     if (password !== confirmPassword) {
       alert('Las contraseñas no coinciden');
       return;
     }
-    router.replace('/home');
+  
+    try {
+      const response = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username,
+          email,
+          password,
+        })
+      });
+  
+      const data = await response.json();
+  
+      if (data.success) {
+        alert('Registro exitoso');
+        router.replace('/home');
+      } else {
+        alert(`Error: ${data.message}`);
+      }
+    } catch (error) {
+      console.error('Error de red:', error);
+      alert('Hubo un problema en el registro. Intenta de nuevo.');
+    }
   };
+  
 
   return (
     <View style={styles.container}>
@@ -25,9 +51,15 @@ export default function Register() {
         <Text style={styles.title}>Registro</Text>
 
         <AuthInput
+          value={username}
+          onChangeText={setUsername}
+          placeholder="Nombre de usuario"
+        />
+
+        <AuthInput
           value={email}
           onChangeText={setEmail}
-          placeholder="Ingresa tu correo electrónico"
+          placeholder="Correo electrónico"
           keyboardType="email-address"
           autoCapitalize="none"
         />
@@ -36,14 +68,14 @@ export default function Register() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          placeholder="Ingresa tu contraseña"
+          placeholder="Contraseña"
         />
 
         <AuthInput
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           secureTextEntry
-          placeholder="Confirma tu contraseña"
+          placeholder="Confirmar contraseña"
         />
 
         <AuthButton
@@ -77,4 +109,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 30,
   },
-}); 
+});
