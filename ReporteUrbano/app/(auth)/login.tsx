@@ -6,15 +6,38 @@ import AuthButton from '../components/AuthButton';
 import AuthLink from '../components/AuthLink';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = async () => {
-    if (!email || !password) {
+  const validateInputs = () => {
+    if (!username || !password) {
       alert('Por favor, completa todos los campos.');
+      return false;
+    }
+
+    if (username.length < 3) {
+      alert('El nombre de usuario debe tener al menos 3 caracteres.');
+      return false;
+    }
+
+    if (password.length < 6) {
+      alert('La contraseña debe tener al menos 6 caracteres.');
+      return false;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      alert('El nombre de usuario solo puede contener letras, números y guiones bajos.');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleLogin = async () => {
+    if (!validateInputs()) {
       return;
     }
-  
+
     try {
       const response = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/login', {
         method: 'POST',
@@ -22,13 +45,13 @@ export default function Login() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: email,
-          password: password,
+          username,
+          password,
         }),
       });
-  
+
       const data = await response.json();
-  
+
       if (response.ok && data.success) {
         alert(data.message || 'Inicio de sesión exitoso');
         router.replace('/home');
@@ -39,7 +62,7 @@ export default function Login() {
       console.error('Error al iniciar sesión:', error);
       alert('Error al conectar con el servidor');
     }
-  };  
+  };
 
   return (
     <View style={styles.container}>
@@ -49,18 +72,17 @@ export default function Login() {
         <Text style={styles.title}>Iniciar Sesión</Text>
 
         <AuthInput
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Ingresa tu nombre de usuario" // más fiel al campo username
+          value={username}
+          onChangeText={setUsername}
+          placeholder="Nombre de usuario"
           autoCapitalize="none"
         />
-
 
         <AuthInput
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          placeholder="Ingresa tu contraseña"
+          placeholder="Contraseña"
         />
 
         <AuthButton
@@ -107,4 +129,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 30,
   },
-}); 
+});
