@@ -1,47 +1,72 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Modal, 
-  TouchableOpacity, 
-  TextInput, 
-  ScrollView, 
-  Alert, 
-  Dimensions, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Alert,
+  Dimensions,
   Platform,
-  KeyboardAvoidingView,
-  SafeAreaView
 } from 'react-native';
+import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
 interface NuevaDenunciaModalProps {
   visible: boolean;
   onClose: () => void;
+  username: string; // Se pasa el nombre del usuario como prop
 }
 
-const NuevaDenunciaModal: React.FC<NuevaDenunciaModalProps> = ({ visible, onClose }) => {
+const NuevaDenunciaModal: React.FC<NuevaDenunciaModalProps> = ({ visible, onClose, username }) => {
   const [hasPhoto, setHasPhoto] = useState(false);
   const [eventType, setEventType] = useState('');
   const [comments, setComments] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     if (!visible) {
       setEventType('');
       setComments('');
       setHasPhoto(false);
+      setPhoto(null);
+    } else {
+      // Obtener la ubicación del usuario al abrir el modal
+      (async () => {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permiso denegado', 'Se necesita acceso a la ubicación para continuar.');
+          return;
+        }
+
+        const userLocation = await Location.getCurrentPositionAsync({});
+        setLocation({
+          latitude: userLocation.coords.latitude,
+          longitude: userLocation.coords.longitude,
+        });
+      })();
     }
   }, [visible]);
 
-  const handleAddPhoto = () => {
-    // Por ahora solo simulamos que se agregó una foto
-    setHasPhoto(true);
-    console.log('Agregar foto');
+  const handleAddPhoto = async () => {
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets?.[0]?.base64) {
+      setPhoto(`data:image/png;base64,${result.assets[0].base64}`);
+      setHasPhoto(true);
+    }
   };
 
-  const handleSubmit = () => {
-    // Verificar campos obligatorios
-    if (!hasPhoto || !eventType.trim()) {
+  const handleSubmit = async () => {
+    if (!hasPhoto || !eventType.trim() || !location) {
       let errorMessage = '';
       if (!hasPhoto && !eventType.trim()) {
         errorMessage = 'Debes agregar una foto y seleccionar un tipo de evento';
@@ -49,29 +74,51 @@ const NuevaDenunciaModal: React.FC<NuevaDenunciaModalProps> = ({ visible, onClos
         errorMessage = 'Debes agregar una foto de la denuncia';
       } else if (!eventType.trim()) {
         errorMessage = 'Debes seleccionar un tipo de evento';
+      } else if (!location) {
+        errorMessage = 'No se pudo obtener la ubicación del usuario';
       }
 
-      Alert.alert(
-        'Campos incompletos',
-        errorMessage,
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Campos incompletos', errorMessage, [{ text: 'OK' }]);
       return;
     }
 
-    // Si todos los campos están completos, mostrar mensaje de éxito
-    Alert.alert(
-      'Éxito',
-      '¡Denuncia enviada con éxito!',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            onClose();
-          }
-        }
-      ]
-    );
+    const payload = {
+      username,
+      imagen: photo,
+      tipoDenuncia: eventType,
+      descripcion: comments || null,
+      latitud: location.latitude,
+      longitud: location.longitude,
+      
+    };
+
+    try {
+      const response = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/hacerDenuncia', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        Alert.alert('Éxito', '¡Denuncia enviada con éxito!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              onClose();
+            },
+          },
+        ]);
+      } else {
+        Alert.alert('Error', data.message || 'Hubo un problema al enviar la denuncia.');
+      }
+    } catch (error) {
+      console.error('Error al enviar la denuncia:', error);
+      Alert.alert('Error', 'No se pudo conectar con el servidor.');
+    }
   };
 
   return (
@@ -92,16 +139,16 @@ const NuevaDenunciaModal: React.FC<NuevaDenunciaModalProps> = ({ visible, onClos
               </TouchableOpacity>
             </View>
 
-            <ScrollView 
+            <ScrollView
               style={styles.form}
               contentContainerStyle={styles.formContent}
               showsVerticalScrollIndicator={false}
             >
-              <TouchableOpacity 
-                style={[styles.photoButton, hasPhoto && styles.photoButtonActive]} 
+              <TouchableOpacity
+                style={[styles.photoButton, hasPhoto && styles.photoButtonActive]}
                 onPress={handleAddPhoto}
               >
-                <Ionicons name={hasPhoto ? "checkmark-circle" : "camera"} size={40} color="#007AFF" />
+                <Ionicons name={hasPhoto ? 'checkmark-circle' : 'camera'} size={40} color="#007AFF" />
                 <Text style={styles.photoText}>
                   {hasPhoto ? 'Foto agregada' : 'Agregar Foto *'}
                 </Text>
@@ -130,7 +177,7 @@ const NuevaDenunciaModal: React.FC<NuevaDenunciaModalProps> = ({ visible, onClos
                 />
               </View>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.submitButton}
                 onPress={handleSubmit}
                 activeOpacity={0.7}
@@ -245,4 +292,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default NuevaDenunciaModal; 
+export default NuevaDenunciaModal;

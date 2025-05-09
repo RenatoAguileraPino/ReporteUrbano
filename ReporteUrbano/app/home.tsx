@@ -167,6 +167,7 @@ export default function Home() {
         <NuevaDenunciaModal
           visible={showDenunciaModal}
           onClose={() => setShowDenunciaModal(false)}
+          username="DefaultUsername" // Replace with the actual username value
         />
 
         <VerDenunciasModal

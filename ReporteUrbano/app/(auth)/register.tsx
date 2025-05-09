@@ -7,7 +7,6 @@ import AuthLink from '../components/AuthLink';
 
 export default function Register() {
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -25,7 +24,6 @@ export default function Register() {
         },
         body: JSON.stringify({
           username,
-          email,
           password,
         })
       });
@@ -57,8 +55,8 @@ export default function Register() {
         />
 
         <AuthInput
-          value={email}
-          onChangeText={setEmail}
+          value={username}
+          onChangeText={setUsername}
           placeholder="Correo electrónico"
           keyboardType="email-address"
           autoCapitalize="none"

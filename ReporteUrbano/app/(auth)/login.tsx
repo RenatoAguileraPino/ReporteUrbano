@@ -6,11 +6,11 @@ import AuthButton from '../components/AuthButton';
 import AuthLink from '../components/AuthLink';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    if (!username || !password) {
       alert('Por favor, completa todos los campos.');
       return;
     }
@@ -22,8 +22,8 @@ export default function Login() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: email,
-          password: password,
+          username,
+          password,
         }),
       });
   
@@ -49,8 +49,8 @@ export default function Login() {
         <Text style={styles.title}>Iniciar Sesión</Text>
 
         <AuthInput
-          value={email}
-          onChangeText={setEmail}
+          value={username}
+          onChangeText={setUsername}
           placeholder="Ingresa tu nombre de usuario" // más fiel al campo username
           autoCapitalize="none"
         />
