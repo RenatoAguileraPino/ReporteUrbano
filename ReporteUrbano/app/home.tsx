@@ -6,7 +6,8 @@ import LocationBar from './components/LocationBar';
 import BottomButtons from './components/BottomButtons';
 import NuevaDenunciaModal from './components/NuevaDenunciaModal';
 import VerDenunciasModal from './components/VerDenunciasModal';
-import DenunciaDetailModal from './components/DenunciaDetailModal';
+import DenunciasCercanas from './components/DenunciasCercanas';
+import MisDenuncias from './components/MisDenuncias';
 import { MaterialIcons } from '@expo/vector-icons';
 
 export default function Home() {
@@ -176,16 +177,15 @@ export default function Home() {
           onMisDenuncias={handleMisDenuncias}
         />
 
-        <DenunciaDetailModal
+        <DenunciasCercanas
           visible={showDenunciasCercanasModal}
-          onBack={() => {
+          onClose={() => {
             setShowDenunciasCercanasModal(false);
             setShowDenunciasModal(true);
           }}
-          title="Denuncias Cercanas"
         />
 
-        <DenunciaDetailModal
+        <MisDenuncias
           visible={showMisDenunciasModal}
           onBack={() => {
             setShowMisDenunciasModal(false);
