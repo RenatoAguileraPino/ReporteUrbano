@@ -9,11 +9,8 @@ import VerDenunciasModal from './components/VerDenunciasModal';
 import DenunciasCercanas from './components/DenunciasCercanas';
 import MisDenuncias from './components/MisDenuncias';
 import { MaterialIcons } from '@expo/vector-icons';
-<<<<<<< HEAD
 import { useSearchParams } from 'expo-router';
-=======
 import AsyncStorage from '@react-native-async-storage/async-storage';
->>>>>>> 651472c54b5837bf6d9d4944aa8daf8d6b9e414a
 
 export default function Home() {
   const mapRef = useRef<MapView>(null);
@@ -28,11 +25,7 @@ export default function Home() {
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
-<<<<<<< HEAD
-  const { username } = useSearchParams(); // Obtener el username de los parámetros
-=======
   const [username, setUsername] = useState<string | null>(null);
->>>>>>> 651472c54b5837bf6d9d4944aa8daf8d6b9e414a
 
   const centerMapOnUser = () => {
     mapRef.current?.animateToRegion({

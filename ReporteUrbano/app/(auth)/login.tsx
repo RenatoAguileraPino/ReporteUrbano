@@ -10,11 +10,7 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-<<<<<<< HEAD
-  const handleLogin = async () => {
-=======
   const validateInputs = () => {
->>>>>>> 651472c54b5837bf6d9d4944aa8daf8d6b9e414a
     if (!username || !password) {
       alert('Por favor, completa todos los campos.');
       return false;
@@ -84,11 +80,7 @@ export default function Login() {
         <AuthInput
           value={username}
           onChangeText={setUsername}
-<<<<<<< HEAD
           placeholder="Ingresa tu nombre de usuario" // más fiel al campo username
-=======
-          placeholder="Nombre de usuario"
->>>>>>> 651472c54b5837bf6d9d4944aa8daf8d6b9e414a
           autoCapitalize="none"
         />
 
@@ -143,8 +135,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 30,
   },
-<<<<<<< HEAD
 });
-=======
-});
->>>>>>> 651472c54b5837bf6d9d4944aa8daf8d6b9e414a
