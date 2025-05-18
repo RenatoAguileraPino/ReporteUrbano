@@ -23,13 +23,8 @@ export default function Register() {
         },
         body: JSON.stringify({
           username,
-<<<<<<< HEAD
-          password,
-        })
-=======
           password
         }),
->>>>>>> 651472c54b5837bf6d9d4944aa8daf8d6b9e414a
       });
 
       const data = await response.json();
@@ -55,16 +50,6 @@ export default function Register() {
           value={username}
           onChangeText={setUsername}
           placeholder="Nombre de usuario"
-<<<<<<< HEAD
-        />
-
-        <AuthInput
-          value={username}
-          onChangeText={setUsername}
-          placeholder="Correo electrónico"
-          keyboardType="email-address"
-=======
->>>>>>> 651472c54b5837bf6d9d4944aa8daf8d6b9e414a
           autoCapitalize="none"
         />
 

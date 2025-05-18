@@ -9,7 +9,6 @@ import VerDenunciasModal from './components/VerDenunciasModal';
 import DenunciasCercanas from './components/DenunciasCercanas';
 import MisDenuncias from './components/MisDenuncias';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Home() {
