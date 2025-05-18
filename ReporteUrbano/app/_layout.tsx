@@ -19,6 +19,12 @@ export default function Layout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="(denuncias)"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

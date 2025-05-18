@@ -8,14 +8,13 @@ import AuthLink from '../components/AuthLink';
 export default function Register() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleRegister = async () => {
-    if (password !== confirmPassword) {
-      alert('Las contraseñas no coinciden');
+    if (!username || !password) {
+      alert('Por favor, completa todos los campos');
       return;
-    }
-  
+    } 
+
     try {
       const response = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/register', {
         method: 'POST',
@@ -24,12 +23,17 @@ export default function Register() {
         },
         body: JSON.stringify({
           username,
+<<<<<<< HEAD
           password,
         })
+=======
+          password
+        }),
+>>>>>>> 651472c54b5837bf6d9d4944aa8daf8d6b9e414a
       });
-  
+
       const data = await response.json();
-  
+
       if (data.success) {
         alert('Registro exitoso');
         router.replace('/home');
@@ -37,11 +41,10 @@ export default function Register() {
         alert(`Error: ${data.message}`);
       }
     } catch (error) {
-      console.error('Error de red:', error);
-      alert('Hubo un problema en el registro. Intenta de nuevo.');
+      console.error('Error en el registro:', error);
+      alert('Hubo un problema al registrarse. Intenta de nuevo.');
     }
   };
-  
 
   return (
     <View style={styles.container}>
@@ -52,6 +55,7 @@ export default function Register() {
           value={username}
           onChangeText={setUsername}
           placeholder="Nombre de usuario"
+<<<<<<< HEAD
         />
 
         <AuthInput
@@ -59,6 +63,8 @@ export default function Register() {
           onChangeText={setUsername}
           placeholder="Correo electrónico"
           keyboardType="email-address"
+=======
+>>>>>>> 651472c54b5837bf6d9d4944aa8daf8d6b9e414a
           autoCapitalize="none"
         />
 
@@ -67,13 +73,6 @@ export default function Register() {
           onChangeText={setPassword}
           secureTextEntry
           placeholder="Contraseña"
-        />
-
-        <AuthInput
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-          placeholder="Confirmar contraseña"
         />
 
         <AuthButton

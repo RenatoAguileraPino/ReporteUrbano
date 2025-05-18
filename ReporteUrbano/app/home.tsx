@@ -1,14 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Platform, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Platform, SafeAreaView, TouchableOpacity, Text } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import LocationBar from './components/LocationBar';
 import BottomButtons from './components/BottomButtons';
 import NuevaDenunciaModal from './components/NuevaDenunciaModal';
 import VerDenunciasModal from './components/VerDenunciasModal';
-import DenunciaDetailModal from './components/DenunciaDetailModal';
+import DenunciasCercanas from './components/DenunciasCercanas';
+import MisDenuncias from './components/MisDenuncias';
 import { MaterialIcons } from '@expo/vector-icons';
+<<<<<<< HEAD
 import { useSearchParams } from 'expo-router';
+=======
+import AsyncStorage from '@react-native-async-storage/async-storage';
+>>>>>>> 651472c54b5837bf6d9d4944aa8daf8d6b9e414a
 
 export default function Home() {
   const mapRef = useRef<MapView>(null);
@@ -23,7 +28,11 @@ export default function Home() {
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
+<<<<<<< HEAD
   const { username } = useSearchParams(); // Obtener el username de los parámetros
+=======
+  const [username, setUsername] = useState<string | null>(null);
+>>>>>>> 651472c54b5837bf6d9d4944aa8daf8d6b9e414a
 
   const centerMapOnUser = () => {
     mapRef.current?.animateToRegion({
@@ -119,6 +128,14 @@ export default function Home() {
     })();
   }, []);
 
+  useEffect(() => {
+    const fetchUsername = async () => {
+      const storedUsername = await AsyncStorage.getItem('username');
+      setUsername(storedUsername);
+    };
+    fetchUsername();
+  }, []);
+
   const handleDenunciasCercanas = () => {
     setShowDenunciasModal(false);
     setShowDenunciasCercanasModal(true);
@@ -138,6 +155,13 @@ export default function Home() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.topContainer}>
+          {username && (
+            <View style={{ marginBottom: 10 }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>
+                Bienvenido {username}
+              </Text>
+            </View>
+          )}
           <LocationBar location={locationName} />
         </View>
         
@@ -179,16 +203,15 @@ export default function Home() {
           onMisDenuncias={handleMisDenuncias}
         />
 
-        <DenunciaDetailModal
+        <DenunciasCercanas
           visible={showDenunciasCercanasModal}
-          onBack={() => {
+          onClose={() => {
             setShowDenunciasCercanasModal(false);
             setShowDenunciasModal(true);
           }}
-          title="Denuncias Cercanas"
         />
 
-        <DenunciaDetailModal
+        <MisDenuncias
           visible={showMisDenunciasModal}
           onBack={() => {
             setShowMisDenunciasModal(false);

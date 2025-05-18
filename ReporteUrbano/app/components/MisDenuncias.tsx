@@ -9,13 +9,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-interface DenunciaDetailModalProps {
+interface MisDenunciasProps {
   visible: boolean;
   onBack: () => void;
   title: string;
 }
 
-const DenunciaDetailModal: React.FC<DenunciaDetailModalProps> = ({ 
+const MisDenuncias: React.FC<MisDenunciasProps> = ({ 
   visible, 
   onBack,
   title
@@ -98,4 +98,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default DenunciaDetailModal; 
+export default MisDenuncias; 
