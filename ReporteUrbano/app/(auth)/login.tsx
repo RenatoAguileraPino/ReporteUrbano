@@ -31,7 +31,11 @@ export default function Login() {
   
       if (response.ok && data.success) {
         alert(data.message || 'Inicio de sesión exitoso');
-        router.replace('/home');
+        console.log('Username antes de navegar:', username);
+        router.replace({
+          pathname: '/home',
+          params: { username }, // Pasar el username como parámetro
+        });
       } else {
         alert(data.message || 'Credenciales incorrectas');
       }
@@ -107,4 +111,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 30,
   },
-}); 
+});

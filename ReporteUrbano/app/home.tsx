@@ -8,6 +8,7 @@ import NuevaDenunciaModal from './components/NuevaDenunciaModal';
 import VerDenunciasModal from './components/VerDenunciasModal';
 import DenunciaDetailModal from './components/DenunciaDetailModal';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSearchParams } from 'expo-router';
 
 export default function Home() {
   const mapRef = useRef<MapView>(null);
@@ -22,6 +23,7 @@ export default function Home() {
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
+  const { username } = useSearchParams(); // Obtener el username de los parámetros
 
   const centerMapOnUser = () => {
     mapRef.current?.animateToRegion({
@@ -167,7 +169,7 @@ export default function Home() {
         <NuevaDenunciaModal
           visible={showDenunciaModal}
           onClose={() => setShowDenunciaModal(false)}
-          username="DefaultUsername" // Replace with the actual username value
+          username={username as string} // Pasar el username como prop
         />
 
         <VerDenunciasModal
@@ -243,4 +245,4 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     zIndex: 1,
   },
-}); 
+});
