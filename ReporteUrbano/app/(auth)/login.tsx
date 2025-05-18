@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import AuthInput from '../components/AuthInput';
 import AuthButton from '../components/AuthButton';
 import AuthLink from '../components/AuthLink';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -53,6 +54,7 @@ export default function Login() {
       const data = await response.json();
 
       if (response.ok && data.success) {
+        await AsyncStorage.setItem('username', username); // Guarda el username
         alert(data.message || 'Inicio de sesión exitoso');
         router.replace('/home');
       } else {
