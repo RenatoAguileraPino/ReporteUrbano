@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 
 // Función para convertir rem a píxeles
 const rem = (size: number) => {
@@ -26,51 +27,55 @@ interface DenunciasCercanasProps {
   onClose: () => void;
 }
 
-// Datos de ejemplo actualizados
+// Datos de ejemplo actualizados según la estructura de la BD
 const denunciasEjemplo = [
   {
     id: 1,
-    titulo: "Bache en calle principal con riesgo de accidente",
-    estado: "Sin reparar",
-    ubicacion: "Comuna de Santiago, Calle Principal 1234",
-    likes: 5,
-    liked: false,
+    tipoDenuncia: "Bache en calle principal",
     imagen: require('../../assets/images/icon.png'),
-    comentario: "El bache tiene aproximadamente 30cm de profundidad y está causando problemas a los vehículos que pasan por la zona. Se necesita atención urgente.",
-    fecha: "15/03/2024"
+    descripcion: "El bache tiene aproximadamente 30cm de profundidad y está causando problemas a los vehículos que pasan por la zona. Se necesita atención urgente.",
+    usuarios_id: 1,
+    latitud: -33.4489,
+    longitud: -70.6693,
+    fecha: "15/03/2024",
+    likes: 5,
+    liked: false
   },
   {
     id: 2,
-    titulo: "Poste de alumbrado público caído en la vereda",
-    estado: "Sin reparar",
-    ubicacion: "Comuna de Providencia, Avenida Nueva Providencia 1234",
-    likes: 3,
-    liked: false,
+    tipoDenuncia: "Poste de alumbrado caído",
     imagen: require('../../assets/images/icon.png'),
-    comentario: "El poste está completamente caído y representa un peligro para los peatones. Los cables están expuestos.",
-    fecha: "14/03/2024"
+    descripcion: "El poste está completamente caído y representa un peligro para los peatones. Los cables están expuestos.",
+    usuarios_id: 2,
+    latitud: -33.4187,
+    longitud: -70.6062,
+    fecha: "14/03/2024",
+    likes: 3,
+    liked: false
   },
   {
     id: 3,
-    titulo: "Semáforo dañado en intersección principal",
-    estado: "Sin reparar",
-    ubicacion: "Comuna de Ñuñoa, Avenida Irarrázaval 5678",
-    likes: 2,
-    liked: false,
+    tipoDenuncia: "Semáforo dañado",
     imagen: require('../../assets/images/icon.png'),
-    comentario: "El semáforo no está funcionando correctamente, solo muestra luz roja intermitente. Es una intersección muy transitada.",
-    fecha: "13/03/2024"
+    descripcion: "El semáforo no está funcionando correctamente, solo muestra luz roja intermitente. Es una intersección muy transitada.",
+    usuarios_id: 3,
+    latitud: -33.4527,
+    longitud: -70.5932,
+    fecha: "13/03/2024",
+    likes: 2,
+    liked: false
   },
   {
     id: 4,
-    titulo: "Fuga de agua en alcantarillado de la calle",
-    estado: "Sin reparar",
-    ubicacion: "Comuna de Macul, Avenida Macul 3456",
-    likes: 4,
-    liked: false,
+    tipoDenuncia: "Fuga de agua",
     imagen: require('../../assets/images/icon.png'),
-    comentario: "Hay una fuga constante de agua que está causando inundación en la calle. El agua ya está llegando a las casas cercanas.",
-    fecha: "11/03/2024"
+    descripcion: "Hay una fuga constante de agua que está causando inundación en la calle. El agua ya está llegando a las casas cercanas.",
+    usuarios_id: 4,
+    latitud: -33.4833,
+    longitud: -70.6000,
+    fecha: "11/03/2024",
+    likes: 4,
+    liked: false
   },
 ];
 
@@ -79,11 +84,49 @@ const DenunciasCercanas: React.FC<DenunciasCercanasProps> = ({
   onClose
 }) => {
   const [denuncias, setDenuncias] = useState(denunciasEjemplo);
+  const [direcciones, setDirecciones] = useState<{[key: number]: string}>({});
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
 
+  // Función para obtener la dirección a partir de coordenadas
+  const getAddressFromCoordinates = async (latitud: number, longitud: number, id: number) => {
+    try {
+      const response = await Location.reverseGeocodeAsync({
+        latitude: latitud,
+        longitude: longitud
+      });
+      
+      if (response.length > 0) {
+        const location = response[0];
+        const direccion = `${location.street || 'Calle sin nombre'}, ${location.city || 'Ciudad sin nombre'}`;
+        setDirecciones(prev => ({
+          ...prev,
+          [id]: direccion
+        }));
+      } else {
+        setDirecciones(prev => ({
+          ...prev,
+          [id]: "Ubicación no disponible"
+        }));
+      }
+    } catch (error) {
+      console.error('Error al obtener la dirección:', error);
+      setDirecciones(prev => ({
+        ...prev,
+        [id]: "Ubicación no disponible"
+      }));
+    }
+  };
+
+  // Cargar direcciones cuando se monta el componente
+  useEffect(() => {
+    denuncias.forEach(denuncia => {
+      getAddressFromCoordinates(denuncia.latitud, denuncia.longitud, denuncia.id);
+    });
+  }, []);
+
   const handleLike = (id: number, event: any) => {
-    event.stopPropagation(); // Evitar que el evento se propague al TouchableOpacity padre
+    event.stopPropagation();
     setDenuncias(denuncias.map(denuncia => 
       denuncia.id === id 
         ? { 
@@ -146,12 +189,12 @@ const DenunciasCercanas: React.FC<DenunciasCercanasProps> = ({
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
-                        {denuncia.titulo}
+                        {denuncia.tipoDenuncia}
                       </Text>
                       <View style={styles.estadoContainer}>
                         <View style={[styles.estadoDot, { width: rem(0.5), height: rem(0.5) }]} />
                         <Text style={[styles.estadoText, { fontSize: rem(0.9) }]}>
-                          {denuncia.estado}
+                          Sin reparar
                         </Text>
                       </View>
                       <Text 
@@ -159,7 +202,7 @@ const DenunciasCercanas: React.FC<DenunciasCercanasProps> = ({
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
-                        {truncateText(denuncia.ubicacion, 40)}
+                        {direcciones[denuncia.id] || "Cargando ubicación..."}
                       </Text>
                     </View>
                     <TouchableOpacity 

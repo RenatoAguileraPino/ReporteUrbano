@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   Platform,
   Dimensions,
-  useWindowDimensions
+  useWindowDimensions,
+  Alert
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,8 +22,8 @@ const rem = (size: number) => {
   return size * 16 * scale;
 };
 
-// Datos de ejemplo actualizados según la estructura de la BD
-const denunciasEjemplo = [
+// Datos de ejemplo según la estructura de la BD
+const misDenunciasEjemplo = [
   {
     id: 1,
     tipoDenuncia: "Bache en calle principal",
@@ -32,55 +33,29 @@ const denunciasEjemplo = [
     latitud: -33.4489,
     longitud: -70.6693,
     fecha: "15/03/2024",
-    likes: 5,
-    liked: false
+    likes: 15
   },
   {
     id: 2,
     tipoDenuncia: "Poste de alumbrado caído",
     imagen: require('../../assets/images/icon.png'),
     descripcion: "El poste está completamente caído y representa un peligro para los peatones. Los cables están expuestos.",
-    usuarios_id: 2,
+    usuarios_id: 1,
     latitud: -33.4187,
     longitud: -70.6062,
     fecha: "14/03/2024",
-    likes: 3,
-    liked: false
-  },
-  {
-    id: 3,
-    tipoDenuncia: "Semáforo dañado",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El semáforo no está funcionando correctamente, solo muestra luz roja intermitente. Es una intersección muy transitada.",
-    usuarios_id: 3,
-    latitud: -33.4527,
-    longitud: -70.5932,
-    fecha: "13/03/2024",
-    likes: 2,
-    liked: false
-  },
-  {
-    id: 4,
-    tipoDenuncia: "Fuga de agua",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "Hay una fuga constante de agua que está causando inundación en la calle. El agua ya está llegando a las casas cercanas.",
-    usuarios_id: 4,
-    latitud: -33.4833,
-    longitud: -70.6000,
-    fecha: "11/03/2024",
-    likes: 4,
-    liked: false
-  },
+    likes: 8
+  }
 ];
 
-export default function InfoDenuncia() {
+export default function InfoMisDenuncias() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
   const [direccion, setDireccion] = useState<string>("Cargando ubicación...");
 
   // Encontrar la denuncia correspondiente
-  const denuncia = denunciasEjemplo.find(d => d.id === Number(id));
+  const denuncia = misDenunciasEjemplo.find(d => d.id === Number(id));
 
   useEffect(() => {
     if (denuncia) {
@@ -98,7 +73,7 @@ export default function InfoDenuncia() {
       
       if (response.length > 0) {
         const location = response[0];
-        setDireccion(`${location.street}, ${location.city}`);
+        setDireccion(`${location.street || 'Calle sin nombre'}, ${location.city || 'Ciudad sin nombre'}`);
       } else {
         setDireccion("Ubicación no disponible");
       }
@@ -106,6 +81,34 @@ export default function InfoDenuncia() {
       console.error('Error al obtener la dirección:', error);
       setDireccion("Ubicación no disponible");
     }
+  };
+
+  const handleEditar = () => {
+    router.push({
+      pathname: "/(denuncias)/editarmisdenuncias",
+      params: { id: id }
+    });
+  };
+
+  const handleEliminar = () => {
+    Alert.alert(
+      "Eliminar Denuncia",
+      "¿Estás seguro de que quieres eliminar esta denuncia?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: () => {
+            // Aquí iría la lógica para eliminar la denuncia
+            router.back();
+          }
+        }
+      ]
+    );
   };
 
   if (!denuncia) {
@@ -125,7 +128,7 @@ export default function InfoDenuncia() {
         >
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Detalle de Denuncia</Text>
+        <Text style={styles.headerTitle}>Detalle de Mi Denuncia</Text>
       </View>
 
       <ScrollView style={styles.scrollView}>
@@ -157,17 +160,34 @@ export default function InfoDenuncia() {
           </View>
 
           <View style={styles.infoSection}>
+            <Text style={styles.sectionTitle}>Likes Totales</Text>
+            <View style={styles.likesContainer}>
+              <Ionicons name="heart" size={20} color="#FF3B30" />
+              <Text style={styles.likesText}>{denuncia.likes}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoSection}>
             <Text style={styles.sectionTitle}>Descripción</Text>
             <Text style={styles.comentarioText}>{denuncia.descripcion}</Text>
           </View>
 
-          <View style={styles.likesContainer}>
-            <Ionicons 
-              name={denuncia.liked ? "checkmark-circle" : "checkmark-circle-outline"} 
-              size={24} 
-              color={denuncia.liked ? "#007AFF" : "#666"} 
-            />
-            <Text style={styles.likesText}>{denuncia.likes} personas apoyan esta denuncia</Text>
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.editarButton]} 
+              onPress={handleEditar}
+            >
+              <Ionicons name="create-outline" size={24} color="#007AFF" />
+              <Text style={styles.actionButtonText}>Editar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.eliminarButton]} 
+              onPress={handleEliminar}
+            >
+              <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+              <Text style={[styles.actionButtonText, styles.eliminarButtonText]}>Eliminar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -243,6 +263,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  coordenadasText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 5,
+  },
   fechaText: {
     fontSize: 16,
     color: '#333',
@@ -252,22 +277,47 @@ const styles = StyleSheet.create({
     color: '#333',
     lineHeight: 24,
   },
-  likesContainer: {
+  actionsContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 20,
     paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
   },
-  likesText: {
-    fontSize: 16,
-    color: '#666',
-    marginLeft: 10,
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 10,
   },
-  coordenadasText: {
-    fontSize: 14,
-    color: '#666',
+  editarButton: {
+    backgroundColor: '#E3F2FD',
+  },
+  eliminarButton: {
+    backgroundColor: '#FFEBEE',
+  },
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+    color: '#007AFF',
+  },
+  eliminarButtonText: {
+    color: '#FF3B30',
+  },
+  likesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 5,
   },
-}); 
+  likesText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+});
