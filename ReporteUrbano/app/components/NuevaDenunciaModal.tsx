@@ -25,7 +25,7 @@ const NuevaDenunciaModal: React.FC<NuevaDenunciaModalProps> = ({ visible, onClos
   const [hasPhoto, setHasPhoto] = useState(false);
   const [eventType, setEventType] = useState('');
   const [comments, setComments] = useState('');
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
@@ -59,8 +59,8 @@ const NuevaDenunciaModal: React.FC<NuevaDenunciaModalProps> = ({ visible, onClos
       base64: true,
     });
 
-    if (!result.canceled && result.assets?.[0]?.base64) {
-      setPhoto(`data:image/png;base64,${result.assets[0].base64}`);
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      setPhoto(result.assets[0]); // Guarda el objeto completo
       setHasPhoto(true);
     }
   };
@@ -82,23 +82,32 @@ const NuevaDenunciaModal: React.FC<NuevaDenunciaModalProps> = ({ visible, onClos
       return;
     }
 
-    const payload = {
-      username,
-      imagen: photo,
-      tipoDenuncia: eventType,
-      descripcion: comments || null,
-      latitud: location.latitude,
-      longitud: location.longitude,
-      
-    };
+    const formData = new FormData();
+
+    formData.append('username', username);
+    formData.append('tipoDenuncia', eventType);
+    formData.append('descripcion', comments || '');
+    formData.append('latitud', location.latitude.toString());
+    formData.append('longitud', location.longitude.toString());
+
+
+
+    if (photo) {
+      const mimeType = photo.uri.endsWith('.png') ? 'image/png' : 'image/jpeg';
+      formData.append('imagen', {
+        uri: photo.uri,
+        name: 'denuncia' + (mimeType === 'image/png' ? '.png' : '.jpg'),
+        type: mimeType,
+      } as any);
+    }
 
     try {
       const response = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/hacerDenuncia', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'multipart/form-data',
         },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       const data = await response.json();
