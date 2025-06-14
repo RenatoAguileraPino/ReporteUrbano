@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Platform, SafeAreaView, TouchableOpacity, Text } from 'react-native';
-import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
+import { View, StyleSheet, Platform, SafeAreaView, TouchableOpacity, Text, Animated } from 'react-native';
 import * as Location from 'expo-location';
 import LocationBar from './components/LocationBar';
 import BottomButtons from './components/BottomButtons';
@@ -8,32 +7,29 @@ import NuevaDenunciaModal from './components/NuevaDenunciaModal';
 import VerDenunciasModal from './components/VerDenunciasModal';
 import DenunciasCercanas from './components/DenunciasCercanas';
 import MisDenuncias from './components/MisDenuncias';
+import DenunciasMapa from './components/DenunciasMapa';
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 
 export default function Home() {
-  const mapRef = useRef<MapView>(null);
   const [showDenunciaModal, setShowDenunciaModal] = useState(false);
   const [showDenunciasModal, setShowDenunciasModal] = useState(false);
   const [showDenunciasCercanasModal, setShowDenunciasCercanasModal] = useState(false);
   const [showMisDenunciasModal, setShowMisDenunciasModal] = useState(false);
   const [locationName, setLocationName] = useState("Obteniendo ubicación...");
   const [userLocation, setUserLocation] = useState({
-    latitude: -33.4489,
-    longitude: -70.6483,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
+    latitude: -33.497529,
+    longitude: -70.686348,
+    latitudeDelta: 0.005,
+    longitudeDelta: 0.005,
   });
   const [username, setUsername] = useState<string | null>(null);
-
-  const centerMapOnUser = () => {
-    mapRef.current?.animateToRegion({
-      latitude: userLocation.latitude,
-      longitude: userLocation.longitude,
-      latitudeDelta: 0.005, // Zoom más cercano para mejor visualización
-      longitudeDelta: 0.005,
-    }, 1000); // Duración de la animación en ms
-  };
+  const [showWelcome, setShowWelcome] = useState(false);
+  const welcomeOpacity = useRef(new Animated.Value(1)).current;
+  const mapRef = useRef<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const updateLocationName = async (latitude: number, longitude: number) => {
     try {
@@ -44,7 +40,6 @@ export default function Home() {
 
       if (geocode && geocode.length > 0) {
         const address = geocode[0];
-        // Construimos el texto con ciudad y comuna/distrito
         const city = address.city || "";
         const district = address.subregion || address.district || "";
         
@@ -69,54 +64,33 @@ export default function Home() {
 
   useEffect(() => {
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.log('Permission to access location was denied');
-        return;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setError('Permiso de ubicación denegado');
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({});
+        const newRegion = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        };
+        
+        setUserLocation(newRegion);
+        
+        // Centrar el mapa en la ubicación del usuario
+        if (mapRef.current) {
+          mapRef.current.animateToRegion(newRegion, 1000);
+        }
+
+        await updateLocationName(location.coords.latitude, location.coords.longitude);
+      } catch (error) {
+        console.error('Error al obtener la ubicación:', error);
+        setError('Error al obtener la ubicación');
       }
-
-      let location = await Location.getCurrentPositionAsync({});
-      const newRegion = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005,
-      };
-      
-      setUserLocation(newRegion);
-      mapRef.current?.animateToRegion(newRegion, 1000);
-
-      // Actualizar el nombre de la ubicación con la nueva función
-      await updateLocationName(location.coords.latitude, location.coords.longitude);
-
-      // Suscribirse a actualizaciones de ubicación
-      const subscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.Balanced,
-          timeInterval: 5000,
-          distanceInterval: 10,
-        },
-        async (location) => {
-          const newRegion = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            latitudeDelta: 0.005,
-            longitudeDelta: 0.005,
-          };
-          
-          setUserLocation(newRegion);
-          mapRef.current?.animateToRegion(newRegion, 1000);
-
-          // Actualizar el nombre de la ubicación con la nueva función
-          await updateLocationName(location.coords.latitude, location.coords.longitude);
-        }
-      );
-
-      return () => {
-        if (subscription) {
-          subscription.remove();
-        }
-      };
     })();
   }, []);
 
@@ -124,6 +98,27 @@ export default function Home() {
     const fetchUsername = async () => {
       const storedUsername = await AsyncStorage.getItem('username');
       setUsername(storedUsername);
+      if (storedUsername) {
+        setShowWelcome(true);
+        // Iniciar la animación desde abajo
+        welcomeOpacity.setValue(0);
+        Animated.timing(welcomeOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start(() => {
+          // Después de mostrar, esperar y desvanecer
+          setTimeout(() => {
+            Animated.timing(welcomeOpacity, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }).start(() => {
+              setShowWelcome(false);
+            });
+          }, 2000);
+        });
+      }
     };
     fetchUsername();
   }, []);
@@ -143,49 +138,50 @@ export default function Home() {
     setShowDenunciaModal(true);
   };
 
+  const centerMapOnUser = () => {
+    if (mapRef.current && userLocation) {
+      mapRef.current.animateToRegion(userLocation, 1000);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <View style={styles.topContainer}>
-          {username && (
-            <View style={{ marginBottom: 10 }}>
-              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>
-                Bienvenido {username}
-              </Text>
-            </View>
-          )}
-          <LocationBar location={locationName} />
+        <View style={styles.mapContainer}>
+          <DenunciasMapa 
+            ref={mapRef}
+            initialRegion={userLocation}
+          />
         </View>
         
-        <View style={styles.mapContainer}>
-          <MapView
-            ref={mapRef}
-            style={styles.map}
-            provider={PROVIDER_GOOGLE}
-            region={userLocation}
-            showsUserLocation={true}
-            showsMyLocationButton={false}
-            onPress={() => {}}
-            onPanDrag={() => {}}
-          />
-          
-          <TouchableOpacity 
-            style={styles.myLocationButton}
-            onPress={centerMapOnUser}
-          >
-            <MaterialIcons name="my-location" size={24} color="#007AFF" />
-          </TouchableOpacity>
+        <View style={styles.locationBarContainer}>
+          <LocationBar location={locationName} />
         </View>
 
-        <BottomButtons
-          onHacerDenuncia={handleHacerDenuncia}
-          onVerDenuncias={() => setShowDenunciasModal(true)}
-        />
+        <TouchableOpacity 
+          style={styles.myLocationButton}
+          onPress={centerMapOnUser}
+        >
+          <MaterialIcons name="my-location" size={24} color="#007AFF" />
+        </TouchableOpacity>
+
+        {showWelcome && (
+          <Animated.View style={[styles.welcomeAlert, { opacity: welcomeOpacity }]}>
+            <Text style={styles.welcomeText}>¡Bienvenido, {username}!</Text>
+          </Animated.View>
+        )}
+
+        <View style={styles.bottomContainer}>
+          <BottomButtons
+            onHacerDenuncia={handleHacerDenuncia}
+            onVerDenuncias={() => setShowDenunciasModal(true)}
+          />
+        </View>
 
         <NuevaDenunciaModal
           visible={showDenunciaModal}
           onClose={() => setShowDenunciaModal(false)}
-          username={username as string} // Pasar el username como prop
+          username={username || ''}
         />
 
         <VerDenunciasModal
@@ -223,30 +219,38 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-  },
-  topContainer: {
-    alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingHorizontal: 20,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1,
+    position: 'relative',
   },
   mapContainer: {
-    flex: 1,
-    overflow: 'hidden',
-  },
-  map: {
     flex: 1,
     width: '100%',
     height: '100%',
   },
+  locationBarContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 30,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    marginHorizontal: 20,
+    borderRadius: 25,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
   myLocationButton: {
     position: 'absolute',
-    right: 16,
-    top: Platform.OS === 'ios' ? 130 : 110,
+    right: 20,
+    top: Platform.OS === 'ios' ? 120 : 100,
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 12,
@@ -258,6 +262,58 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    zIndex: 1000,
+  },
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  topContainer: {
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingHorizontal: 20,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     zIndex: 1,
+  },
+  welcomeAlert: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 90 : 80,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  welcomeText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  map: {
+    width: '100%',
+    height: '100%',
   },
 });

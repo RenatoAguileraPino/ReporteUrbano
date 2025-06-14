@@ -9,11 +9,13 @@ import {
   ScrollView,
   Dimensions,
   useWindowDimensions,
-  Image
+  Image,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface MisDenunciasProps {
   visible: boolean;
@@ -28,37 +30,36 @@ const rem = (size: number) => {
   return size * 16 * scale;
 };
 
-// Datos de ejemplo según la estructura de la BD
-const misDenunciasEjemplo = [
-  {
-    id: 1,
-    tipoDenuncia: "Bache en calle principal",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El bache tiene aproximadamente 30cm de profundidad y está causando problemas a los vehículos que pasan por la zona. Se necesita atención urgente.",
-    usuarios_id: 1,
-    latitud: -33.4489,
-    longitud: -70.6693,
-    fecha: "15/03/2024"
-  },
-  {
-    id: 2,
-    tipoDenuncia: "Poste de alumbrado caído",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El poste está completamente caído y representa un peligro para los peatones. Los cables están expuestos.",
-    usuarios_id: 1,
-    latitud: -33.4187,
-    longitud: -70.6062,
-    fecha: "14/03/2024"
-  }
-];
+interface Denuncia {
+  id: number;
+  tipoDenuncia: string;
+  descripcion: string;
+  usuarios_id: number;
+  latitud: number;
+  longitud: number;
+  fecha: string;
+  imagen: string;
+}
+
+interface DenunciaBackend {
+  id: number;
+  tipodenuncia: string;
+  descripcion: string;
+  usuarios_id: number;
+  latitud: string;
+  longitud: string;
+  fecha_denuncia: string;
+}
 
 const MisDenuncias: React.FC<MisDenunciasProps> = ({ 
   visible, 
   onBack,
   title
 }) => {
-  const [denuncias, setDenuncias] = useState(misDenunciasEjemplo);
+  const [denuncias, setDenuncias] = useState<Denuncia[]>([]);
   const [direcciones, setDirecciones] = useState<{[key: number]: string}>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
 
@@ -92,12 +93,73 @@ const MisDenuncias: React.FC<MisDenunciasProps> = ({
     }
   };
 
-  // Cargar direcciones cuando se monta el componente
+  // Función para cargar las denuncias del usuario
+  const cargarDenuncias = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Obtener el username del AsyncStorage
+      const username = await AsyncStorage.getItem('username');
+      if (!username) {
+        setError('No se encontró el usuario');
+        return;
+      }
+
+      const response = await fetch(
+        'https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/traerDenunciasCercanas?lat=-33.4986096&lon=-70.6867968&distancia=1000',
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Error del servidor: ${response.status}`);
+      }
+
+      const data: DenunciaBackend[] = await response.json();
+      console.log('Datos recibidos:', data); // Para debug
+      
+      // Filtrar las denuncias por el usuarios_id
+      const denunciasUsuario = data
+        .filter(denuncia => denuncia.usuarios_id === 100) // Por ahora hardcodeamos el ID 100 para pruebas
+        .map(denuncia => ({
+          id: denuncia.id,
+          tipoDenuncia: denuncia.tipodenuncia || '',
+          descripcion: denuncia.descripcion || '',
+          usuarios_id: denuncia.usuarios_id,
+          latitud: parseFloat(denuncia.latitud) || 0,
+          longitud: parseFloat(denuncia.longitud) || 0,
+          fecha: denuncia.fecha_denuncia ? new Date(denuncia.fecha_denuncia).toLocaleDateString() : '',
+          imagen: `https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/denuncia/imagen/${denuncia.id}`
+        }));
+
+      setDenuncias(denunciasUsuario);
+
+      // Cargar direcciones para cada denuncia
+      denunciasUsuario.forEach(denuncia => {
+        if (denuncia.latitud && denuncia.longitud) {
+          getAddressFromCoordinates(denuncia.latitud, denuncia.longitud, denuncia.id);
+        }
+      });
+    } catch (error) {
+      console.error('Error al cargar denuncias:', error);
+      setError(error instanceof Error ? error.message : 'Error al cargar las denuncias');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cargar denuncias cuando el modal se hace visible
   useEffect(() => {
-    denuncias.forEach(denuncia => {
-      getAddressFromCoordinates(denuncia.latitud, denuncia.longitud, denuncia.id);
-    });
-  }, []);
+    if (visible) {
+      cargarDenuncias();
+    }
+  }, [visible]);
 
   const handleDenunciaPress = (id: number) => {
     router.push(`/(denuncias)/infomisdenuncias?id=${id}`);
@@ -121,54 +183,68 @@ const MisDenuncias: React.FC<MisDenunciasProps> = ({
               <Text style={styles.title}>{title}</Text>
             </View>
 
-            <ScrollView 
-              style={styles.denunciasList}
-              contentContainerStyle={styles.denunciasListContent}
-            >
-              {denuncias.map((denuncia) => (
-                <TouchableOpacity 
-                  key={denuncia.id}
-                  onPress={() => handleDenunciaPress(denuncia.id)}
-                  style={[
-                    styles.denunciaCard,
-                    { 
-                      maxWidth: windowWidth - rem(1),
-                      marginHorizontal: rem(0.25)
-                    }
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.denunciaContent}>
-                    <View style={styles.denunciaInfo}>
-                      <Text 
-                        style={[styles.denunciaTitulo, { fontSize: rem(1.1) }]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {denuncia.tipoDenuncia}
-                      </Text>
-                      <View style={styles.estadoContainer}>
-                        <View style={[styles.estadoDot, { width: rem(0.5), height: rem(0.5) }]} />
-                        <Text style={[styles.estadoText, { fontSize: rem(0.9) }]}>
-                          Sin reparar
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#007AFF" />
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : denuncias.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No tienes denuncias registradas</Text>
+              </View>
+            ) : (
+              <ScrollView 
+                style={styles.denunciasList}
+                contentContainerStyle={styles.denunciasListContent}
+              >
+                {denuncias.map((denuncia) => (
+                  <TouchableOpacity 
+                    key={denuncia.id}
+                    onPress={() => handleDenunciaPress(denuncia.id)}
+                    style={[
+                      styles.denunciaCard,
+                      { 
+                        maxWidth: windowWidth - rem(1),
+                        marginHorizontal: rem(0.25)
+                      }
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.denunciaContent}>
+                      <View style={styles.denunciaInfo}>
+                        <Text 
+                          style={[styles.denunciaTitulo, { fontSize: rem(1.1) }]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {denuncia.tipoDenuncia}
+                        </Text>
+                        <View style={styles.estadoContainer}>
+                          <View style={[styles.estadoDot, { width: rem(0.5), height: rem(0.5) }]} />
+                          <Text style={[styles.estadoText, { fontSize: rem(0.9) }]}>
+                            Sin reparar
+                          </Text>
+                        </View>
+                        <Text 
+                          style={[styles.ubicacionText, { fontSize: rem(0.9) }]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {direcciones[denuncia.id] || "Cargando ubicación..."}
                         </Text>
                       </View>
-                      <Text 
-                        style={[styles.ubicacionText, { fontSize: rem(0.9) }]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {direcciones[denuncia.id] || "Cargando ubicación..."}
-                      </Text>
+                      <View style={styles.verContainer}>
+                        <Text style={styles.verText}>Ver</Text>
+                        <Ionicons name="chevron-forward" size={rem(1.3)} color="#007AFF" />
+                      </View>
                     </View>
-                    <View style={styles.verContainer}>
-                      <Text style={styles.verText}>Ver</Text>
-                      <Ionicons name="chevron-forward" size={rem(1.3)} color="#007AFF" />
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
           </View>
         </View>
       </View>
@@ -279,6 +355,33 @@ const styles = StyleSheet.create({
   verText: {
     color: '#007AFF',
     marginRight: rem(0.25),
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: rem(1),
+  },
+  errorText: {
+    color: '#FF3B30',
+    textAlign: 'center',
+    fontSize: rem(1),
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: rem(1),
+  },
+  emptyText: {
+    color: '#666',
+    textAlign: 'center',
+    fontSize: rem(1),
   },
 });
 

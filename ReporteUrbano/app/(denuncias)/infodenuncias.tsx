@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   Platform,
   Dimensions,
-  useWindowDimensions
+  useWindowDimensions,
+  ActivityIndicator
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,75 +22,31 @@ const rem = (size: number) => {
   return size * 16 * scale;
 };
 
-// Datos de ejemplo actualizados según la estructura de la BD
-const denunciasEjemplo = [
-  {
-    id: 1,
-    tipoDenuncia: "Bache en calle principal",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El bache tiene aproximadamente 30cm de profundidad y está causando problemas a los vehículos que pasan por la zona. Se necesita atención urgente.",
-    usuarios_id: 1,
-    latitud: -33.4489,
-    longitud: -70.6693,
-    fecha: "15/03/2024",
-    likes: 5,
-    liked: false
-  },
-  {
-    id: 2,
-    tipoDenuncia: "Poste de alumbrado caído",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El poste está completamente caído y representa un peligro para los peatones. Los cables están expuestos.",
-    usuarios_id: 2,
-    latitud: -33.4187,
-    longitud: -70.6062,
-    fecha: "14/03/2024",
-    likes: 3,
-    liked: false
-  },
-  {
-    id: 3,
-    tipoDenuncia: "Semáforo dañado",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El semáforo no está funcionando correctamente, solo muestra luz roja intermitente. Es una intersección muy transitada.",
-    usuarios_id: 3,
-    latitud: -33.4527,
-    longitud: -70.5932,
-    fecha: "13/03/2024",
-    likes: 2,
-    liked: false
-  },
-  {
-    id: 4,
-    tipoDenuncia: "Fuga de agua",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "Hay una fuga constante de agua que está causando inundación en la calle. El agua ya está llegando a las casas cercanas.",
-    usuarios_id: 4,
-    latitud: -33.4833,
-    longitud: -70.6000,
-    fecha: "11/03/2024",
-    likes: 4,
-    liked: false
-  },
-];
+interface Denuncia {
+  id: number;
+  tipoDenuncia: string;
+  imagen: string;
+  descripcion: string;
+  usuarios_id: number;
+  latitud: number;
+  longitud: number;
+  fecha: string;
+  likes: number;
+  liked: boolean;
+}
 
 export default function InfoDenuncia() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
   const [direccion, setDireccion] = useState<string>("Cargando ubicación...");
-
-  // Encontrar la denuncia correspondiente
-  const denuncia = denunciasEjemplo.find(d => d.id === Number(id));
-
-  useEffect(() => {
-    if (denuncia) {
-      getAddressFromCoordinates(denuncia.latitud, denuncia.longitud);
-    }
-  }, [denuncia]);
+  const [denuncia, setDenuncia] = useState<Denuncia | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(true);
 
   // Función para obtener la dirección a partir de coordenadas
-  const getAddressFromCoordinates = async (latitud: number, longitud: number) => {
+  const getAddressFromCoordinates = useCallback(async (latitud: number, longitud: number) => {
     try {
       const response = await Location.reverseGeocodeAsync({
         latitude: latitud,
@@ -98,7 +55,10 @@ export default function InfoDenuncia() {
       
       if (response.length > 0) {
         const location = response[0];
-        setDireccion(`${location.street}, ${location.city}`);
+        // Simplificar la dirección
+        const street = location.street || 'Calle sin nombre';
+        const city = location.city || 'Ciudad sin nombre';
+        setDireccion(`${street}, ${city}`);
       } else {
         setDireccion("Ubicación no disponible");
       }
@@ -106,12 +66,117 @@ export default function InfoDenuncia() {
       console.error('Error al obtener la dirección:', error);
       setDireccion("Ubicación no disponible");
     }
+  }, []);
+
+  const fetchDenuncia = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch(
+        `https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/traerDenuncia/${id}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Error del servidor: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Limitar los datos almacenados a solo lo necesario
+      const denunciaData: Denuncia = {
+        id: data.id,
+        tipoDenuncia: data.tipodenuncia || '',
+        descripcion: data.descripcion || '',
+        usuarios_id: data.usuarios_id,
+        latitud: parseFloat(data.latitud) || 0,
+        longitud: parseFloat(data.longitud) || 0,
+        fecha: data.fecha_denuncia ? new Date(data.fecha_denuncia).toLocaleDateString() : '',
+        likes: parseInt(data.likes) || 0,
+        liked: false,
+        imagen: `https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/denuncia/imagen/${data.id}`
+      };
+
+      // Limpiar cualquier dato innecesario
+      setDenuncia(denunciaData);
+      
+      // Obtener la dirección de forma separada
+      if (denunciaData.latitud && denunciaData.longitud) {
+        getAddressFromCoordinates(denunciaData.latitud, denunciaData.longitud);
+      }
+    } catch (error) {
+      console.error('Error al obtener la denuncia:', error);
+      setError(error instanceof Error ? error.message : 'Error al cargar la denuncia');
+    } finally {
+      setLoading(false);
+    }
+  }, [id, getAddressFromCoordinates]);
+
+  useEffect(() => {
+    fetchDenuncia();
+  }, [fetchDenuncia]);
+
+  // Limpiar datos al desmontar el componente
+  useEffect(() => {
+    return () => {
+      setDenuncia(null);
+      setDireccion("Cargando ubicación...");
+      setImageLoading(true);
+    };
+  }, []);
+
+  const handleImageLoad = () => {
+    setImageLoading(false);
   };
 
-  if (!denuncia) {
+  if (loading) {
     return (
       <View style={styles.container}>
-        <Text>Denuncia no encontrada</Text>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detalle de Denuncia</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Cargando denuncia...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (error || !denuncia) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detalle de Denuncia</Text>
+        </View>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error || 'Denuncia no encontrada'}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={fetchDenuncia}
+          >
+            <Text style={styles.retryButtonText}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -129,11 +194,19 @@ export default function InfoDenuncia() {
       </View>
 
       <ScrollView style={styles.scrollView}>
-        <Image 
-          source={denuncia.imagen} 
-          style={[styles.image, { width: windowWidth }]}
-          resizeMode="cover"
-        />
+        <View style={styles.imageContainer}>
+          {imageLoading && (
+            <View style={styles.imageLoadingContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+            </View>
+          )}
+          <Image 
+            source={{ uri: denuncia.imagen }} 
+            style={[styles.image, { width: windowWidth }]}
+            resizeMode="cover"
+            onLoad={handleImageLoad}
+          />
+        </View>
 
         <View style={styles.content}>
           <Text style={styles.titulo}>{denuncia.tipoDenuncia}</Text>
@@ -200,6 +273,20 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  imageContainer: {
+    position: 'relative',
+    height: 300,
+  },
+  imageLoadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
   },
   image: {
     height: 300,
@@ -269,5 +356,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 5,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#FF3B30',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
   },
 }); 

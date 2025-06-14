@@ -9,7 +9,8 @@ import {
   ScrollView,
   Dimensions,
   useWindowDimensions,
-  Image
+  Image,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -27,66 +28,108 @@ interface DenunciasCercanasProps {
   onClose: () => void;
 }
 
-// Datos de ejemplo actualizados según la estructura de la BD
-const denunciasEjemplo = [
-  {
-    id: 1,
-    tipoDenuncia: "Bache en calle principal",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El bache tiene aproximadamente 30cm de profundidad y está causando problemas a los vehículos que pasan por la zona. Se necesita atención urgente.",
-    usuarios_id: 1,
-    latitud: -33.4489,
-    longitud: -70.6693,
-    fecha: "15/03/2024",
-    likes: 5,
-    liked: false
-  },
-  {
-    id: 2,
-    tipoDenuncia: "Poste de alumbrado caído",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El poste está completamente caído y representa un peligro para los peatones. Los cables están expuestos.",
-    usuarios_id: 2,
-    latitud: -33.4187,
-    longitud: -70.6062,
-    fecha: "14/03/2024",
-    likes: 3,
-    liked: false
-  },
-  {
-    id: 3,
-    tipoDenuncia: "Semáforo dañado",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El semáforo no está funcionando correctamente, solo muestra luz roja intermitente. Es una intersección muy transitada.",
-    usuarios_id: 3,
-    latitud: -33.4527,
-    longitud: -70.5932,
-    fecha: "13/03/2024",
-    likes: 2,
-    liked: false
-  },
-  {
-    id: 4,
-    tipoDenuncia: "Fuga de agua",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "Hay una fuga constante de agua que está causando inundación en la calle. El agua ya está llegando a las casas cercanas.",
-    usuarios_id: 4,
-    latitud: -33.4833,
-    longitud: -70.6000,
-    fecha: "11/03/2024",
-    likes: 4,
-    liked: false
-  },
-];
+interface Denuncia {
+  id: number;
+  tipoDenuncia: string;
+  imagen: string;
+  descripcion: string;
+  usuarios_id: number;
+  latitud: number;
+  longitud: number;
+  fecha: string;
+  likes: number;
+  liked: boolean;
+}
 
 const DenunciasCercanas: React.FC<DenunciasCercanasProps> = ({ 
   visible, 
   onClose
 }) => {
-  const [denuncias, setDenuncias] = useState(denunciasEjemplo);
+  const [denuncias, setDenuncias] = useState<Denuncia[]>([]);
   const [direcciones, setDirecciones] = useState<{[key: number]: string}>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
+
+  // Función para obtener la ubicación actual
+  const getCurrentLocation = async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setError('Permiso de ubicación denegado');
+        return null;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      return {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      };
+    } catch (error) {
+      console.error('Error al obtener ubicación:', error);
+      setError('Error al obtener ubicación');
+      return null;
+    }
+  };
+
+  // Función para obtener denuncias cercanas
+  const fetchDenunciasCercanas = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const location = await getCurrentLocation();
+      
+      if (!location) {
+        setError('No se pudo obtener la ubicación');
+        return;
+      }
+
+      console.log('Obteniendo denuncias cercanas con coordenadas:', location);
+
+      const response = await fetch(
+        `https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/traerDenunciasCercanas?lat=${location.latitude}&lon=${location.longitude}&distancia=5`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      console.log('Respuesta del servidor:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`Error del servidor: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Datos recibidos:', data);
+
+      if (!Array.isArray(data)) {
+        throw new Error('Formato de datos inválido');
+      }
+
+      setDenuncias(data.map((denuncia: any) => ({
+        id: denuncia.id,
+        tipoDenuncia: denuncia.tipodenuncia,
+        descripcion: denuncia.descripcion,
+        usuarios_id: denuncia.usuarios_id,
+        latitud: parseFloat(denuncia.latitud),
+        longitud: parseFloat(denuncia.longitud),
+        fecha: new Date(denuncia.fecha_denuncia).toLocaleDateString(),
+        likes: denuncia.likes || 0,
+        liked: false,
+        imagen: `https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/denuncia/imagen/${denuncia.id}`
+      })));
+    } catch (error) {
+      console.error('Error detallado al obtener denuncias:', error);
+      setError(error instanceof Error ? error.message : 'Error al cargar las denuncias');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Función para obtener la dirección a partir de coordenadas
   const getAddressFromCoordinates = async (latitud: number, longitud: number, id: number) => {
@@ -118,12 +161,19 @@ const DenunciasCercanas: React.FC<DenunciasCercanasProps> = ({
     }
   };
 
-  // Cargar direcciones cuando se monta el componente
+  // Cargar denuncias y direcciones cuando se monta el componente
+  useEffect(() => {
+    if (visible) {
+      fetchDenunciasCercanas();
+    }
+  }, [visible]);
+
+  // Cargar direcciones cuando se actualizan las denuncias
   useEffect(() => {
     denuncias.forEach(denuncia => {
       getAddressFromCoordinates(denuncia.latitud, denuncia.longitud, denuncia.id);
     });
-  }, []);
+  }, [denuncias]);
 
   const handleLike = (id: number, event: any) => {
     event.stopPropagation();
@@ -140,11 +190,6 @@ const DenunciasCercanas: React.FC<DenunciasCercanasProps> = ({
 
   const handleDenunciaPress = (id: number) => {
     router.push(`/(denuncias)/infodenuncias?id=${id}`);
-  };
-
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength) + '...';
   };
 
   return (
@@ -165,63 +210,85 @@ const DenunciasCercanas: React.FC<DenunciasCercanasProps> = ({
               <Text style={styles.title}>Denuncias Cercanas</Text>
             </View>
 
-            <ScrollView 
-              style={styles.denunciasList}
-              contentContainerStyle={styles.denunciasListContent}
-            >
-              {denuncias.map((denuncia) => (
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Cargando denuncias...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
                 <TouchableOpacity 
-                  key={denuncia.id}
-                  onPress={() => handleDenunciaPress(denuncia.id)}
-                  style={[
-                    styles.denunciaCard,
-                    { 
-                      maxWidth: windowWidth - rem(1),
-                      marginHorizontal: rem(0.25)
-                    }
-                  ]}
-                  activeOpacity={0.7}
+                  style={styles.retryButton}
+                  onPress={fetchDenunciasCercanas}
                 >
-                  <View style={styles.denunciaContent}>
-                    <View style={styles.denunciaInfo}>
-                      <Text 
-                        style={[styles.denunciaTitulo, { fontSize: rem(1.1) }]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {denuncia.tipoDenuncia}
-                      </Text>
-                      <View style={styles.estadoContainer}>
-                        <View style={[styles.estadoDot, { width: rem(0.5), height: rem(0.5) }]} />
-                        <Text style={[styles.estadoText, { fontSize: rem(0.9) }]}>
-                          Sin reparar
+                  <Text style={styles.retryButtonText}>Reintentar</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView 
+                style={styles.denunciasList}
+                contentContainerStyle={styles.denunciasListContent}
+              >
+                {denuncias.map((denuncia) => (
+                  <TouchableOpacity 
+                    key={denuncia.id}
+                    onPress={() => handleDenunciaPress(denuncia.id)}
+                    style={[
+                      styles.denunciaCard,
+                      { 
+                        maxWidth: windowWidth - rem(1),
+                        marginHorizontal: rem(0.25)
+                      }
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.denunciaContent}>
+                      <View style={styles.denunciaInfo}>
+                        <Text 
+                          style={[styles.denunciaTitulo, { fontSize: rem(1.1) }]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {denuncia.tipoDenuncia}
+                        </Text>
+                        <View style={styles.estadoContainer}>
+                          <View style={[styles.estadoDot, { width: rem(0.5), height: rem(0.5) }]} />
+                          <Text style={[styles.estadoText, { fontSize: rem(0.9) }]}>
+                            Sin reparar
+                          </Text>
+                        </View>
+                        <Text 
+                          style={[styles.ubicacionText, { fontSize: rem(0.9) }]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {direcciones[denuncia.id] || "Cargando ubicación..."}
+                        </Text>
+                        <Text 
+                          style={[styles.fechaText, { fontSize: rem(0.8) }]}
+                        >
+                          {denuncia.fecha}
                         </Text>
                       </View>
-                      <Text 
-                        style={[styles.ubicacionText, { fontSize: rem(0.9) }]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
+                      <TouchableOpacity 
+                        style={styles.likeContainer}
+                        onPress={(event) => handleLike(denuncia.id, event)}
                       >
-                        {direcciones[denuncia.id] || "Cargando ubicación..."}
-                      </Text>
+                        <Ionicons 
+                          name={denuncia.liked ? "checkmark-circle" : "checkmark-circle-outline"} 
+                          size={rem(1.3)}
+                          color={denuncia.liked ? "#007AFF" : "#666"}
+                        />
+                        <Text style={[styles.likeCount, { fontSize: rem(0.9) }]}>
+                          {denuncia.likes}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
-                    <TouchableOpacity 
-                      style={styles.likeContainer}
-                      onPress={(event) => handleLike(denuncia.id, event)}
-                    >
-                      <Ionicons 
-                        name={denuncia.liked ? "checkmark-circle" : "checkmark-circle-outline"} 
-                        size={rem(1.3)}
-                        color={denuncia.liked ? "#007AFF" : "#666"}
-                      />
-                      <Text style={[styles.likeCount, { fontSize: rem(0.9) }]}>
-                        {denuncia.likes}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
           </View>
         </View>
       </View>
@@ -335,6 +402,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   likeCount: {
+    color: '#666',
+    marginTop: rem(0.25),
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: rem(1),
+    fontSize: rem(1),
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: rem(1),
+  },
+  errorText: {
+    fontSize: rem(1),
+    color: '#FF3B30',
+    textAlign: 'center',
+    marginBottom: rem(1),
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: rem(1),
+    paddingVertical: rem(0.5),
+    borderRadius: rem(0.5),
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: rem(0.9),
+    fontWeight: '500',
+  },
+  fechaText: {
     color: '#666',
     marginTop: rem(0.25),
   },

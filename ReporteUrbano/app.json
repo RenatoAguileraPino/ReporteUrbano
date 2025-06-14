@@ -25,6 +25,11 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.reporteurbano.app",
+      "softwareKeyboardLayoutMode": "pan",
+      "userInterfaceStyle": "automatic",
+      "navigationBarColor": "transparent",
+      "navigationBarHidden": true,
+      "immersive": true,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
