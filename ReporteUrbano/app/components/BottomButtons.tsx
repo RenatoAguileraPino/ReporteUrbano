@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 interface BottomButtonsProps {
   onHacerDenuncia: () => void;
@@ -12,22 +13,20 @@ const BottomButtons: React.FC<BottomButtonsProps> = ({
 }) => {
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
-        style={[styles.button, styles.leftButton]}
+      <TouchableOpacity
+        style={[styles.button, styles.denunciaButton]}
         onPress={onHacerDenuncia}
-        activeOpacity={0.7}
       >
-        <Text style={styles.buttonText}>Hacer Denuncia</Text>
+        <Ionicons name="add-circle-outline" size={24} color="#fff" />
+        <Text style={styles.denunciaText}>Hacer Denuncia</Text>
       </TouchableOpacity>
 
-      <View style={styles.separator} />
-
-      <TouchableOpacity 
-        style={[styles.button, styles.rightButton]}
+      <TouchableOpacity
+        style={[styles.button, styles.verDenunciasButton]}
         onPress={onVerDenuncias}
-        activeOpacity={0.7}
       >
-        <Text style={styles.buttonText}>Ver Denuncias</Text>
+        <Ionicons name="list-outline" size={24} color="#fff" />
+        <Text style={styles.denunciaText}>Ver Denuncias</Text>
       </TouchableOpacity>
     </View>
   );
@@ -36,49 +35,45 @@ const BottomButtons: React.FC<BottomButtonsProps> = ({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    backgroundColor: 'transparent',
     position: 'absolute',
-    bottom: 0,
+    bottom: 20, // Aumentamos este valor para subir los botones
     left: 0,
     right: 0,
-    backgroundColor: 'white',
-    height: 60,
-    borderTopWidth: 1,
-    borderTopColor: '#007AFF',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
+    zIndex: 1000,
   },
   button: {
-    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    padding: 15,
+    borderRadius: 12,
+    width: '45%',
+    backgroundColor: '#007AFF', // Cambiamos a fondo azul
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
   },
-  leftButton: {
-    borderRightWidth: 1,
-    borderRightColor: '#007AFF',
+  denunciaButton: {
+    borderWidth: 0, // Removemos el borde
   },
-  rightButton: {
-    borderLeftWidth: 1,
-    borderLeftColor: '#007AFF',
+  verDenunciasButton: {
+    borderWidth: 0, // Removemos el borde
   },
-  separator: {
-    width: 1,
-    backgroundColor: '#007AFF',
-  },
-  buttonText: {
+  denunciaText: {
+    color: '#fff', // Cambiamos a texto blanco
     fontSize: 16,
-    fontWeight: '500',
-    color: '#007AFF',
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
 
-export default BottomButtons; 
+export default BottomButtons;
