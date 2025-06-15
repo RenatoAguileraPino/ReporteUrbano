@@ -9,11 +9,13 @@ import {
   Platform,
   Dimensions,
   useWindowDimensions,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Función para convertir rem a píxeles
 const rem = (size: number) => {
@@ -22,50 +24,109 @@ const rem = (size: number) => {
   return size * 16 * scale;
 };
 
-// Datos de ejemplo según la estructura de la BD
-const misDenunciasEjemplo = [
-  {
-    id: 1,
-    tipoDenuncia: "Bache en calle principal",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El bache tiene aproximadamente 30cm de profundidad y está causando problemas a los vehículos que pasan por la zona. Se necesita atención urgente.",
-    usuarios_id: 1,
-    latitud: -33.4489,
-    longitud: -70.6693,
-    fecha: "15/03/2024",
-    likes: 15
-  },
-  {
-    id: 2,
-    tipoDenuncia: "Poste de alumbrado caído",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El poste está completamente caído y representa un peligro para los peatones. Los cables están expuestos.",
-    usuarios_id: 1,
-    latitud: -33.4187,
-    longitud: -70.6062,
-    fecha: "14/03/2024",
-    likes: 8
-  }
-];
+interface Denuncia {
+  id: number;
+  tipoDenuncia: string;
+  imagen: string;
+  descripcion: string;
+  usuarios_id: number;
+  latitud: number;
+  longitud: number;
+  fecha: string;
+  likes: number;
+}
 
 export default function InfoMisDenuncias() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
   const [direccion, setDireccion] = useState<string>("Cargando ubicación...");
-
-  // Encontrar la denuncia correspondiente
-  const denuncia = misDenunciasEjemplo.find(d => d.id === Number(id));
+  const [denuncia, setDenuncia] = useState<Denuncia | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (denuncia) {
-      getAddressFromCoordinates(denuncia.latitud, denuncia.longitud);
+    cargarDenuncia();
+  }, [id]);
+
+  const cargarDenuncia = async () => {
+    try {
+      // Obtener el username del usuario actual
+      const username = await AsyncStorage.getItem('username');
+      if (!username) {
+        Alert.alert('Error', 'No se encontró el usuario');
+        router.back();
+        return;
+      }
+
+      // Obtener el ID del usuario basado en el username
+      const userResponse = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/run-sql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sql: `SELECT id FROM usuarios WHERE nombre = '${username}'`
+        })
+      });
+
+      const userData = await userResponse.json();
+      if (!userData.result || userData.result.rows.length === 0) {
+        Alert.alert('Error', 'No se encontró el ID del usuario');
+        router.back();
+        return;
+      }
+
+      const userId = userData.result.rows[0].id;
+      console.log('ID del usuario:', userId);
+
+      const response = await fetch(`https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/traerDenuncia/${id}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al cargar la denuncia');
+      }
+
+      // Verificar si el usuario tiene permiso para ver esta denuncia
+      if (data.usuarios_id !== userId) {
+        Alert.alert('Error', 'No tienes permiso para ver esta denuncia');
+        router.back();
+        return;
+      }
+
+      // Solo guardamos los datos necesarios
+      const denunciaData = {
+        id: data.id,
+        tipoDenuncia: data.tipodenuncia || 'Sin tipo especificado',
+        descripcion: data.descripcion || 'Sin descripción',
+        latitud: parseFloat(data.latitud) || 0,
+        longitud: parseFloat(data.longitud) || 0,
+        fecha: data.fecha || new Date().toLocaleDateString(),
+        likes: parseInt(data.likes) || 0,
+        usuarios_id: data.usuarios_id,
+        imagen: `https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/denuncia/imagen/${data.id}`
+      };
+
+      setDenuncia(denunciaData);
+      
+      if (denunciaData.latitud && denunciaData.longitud) {
+        getAddressFromCoordinates(denunciaData.latitud, denunciaData.longitud);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Error al cargar la denuncia');
+      router.back();
+    } finally {
+      setLoading(false);
     }
-  }, [denuncia]);
+  };
 
   // Función para obtener la dirección a partir de coordenadas
   const getAddressFromCoordinates = async (latitud: number, longitud: number) => {
     try {
+      if (typeof latitud !== 'number' || typeof longitud !== 'number') {
+        setDireccion("Ubicación no disponible");
+        return;
+      }
+
       const response = await Location.reverseGeocodeAsync({
         latitude: latitud,
         longitude: longitud
@@ -111,6 +172,14 @@ export default function InfoMisDenuncias() {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
   if (!denuncia) {
     return (
       <View style={styles.container}>
@@ -133,7 +202,7 @@ export default function InfoMisDenuncias() {
 
       <ScrollView style={styles.scrollView}>
         <Image 
-          source={denuncia.imagen} 
+          source={{ uri: denuncia.imagen }}
           style={[styles.image, { width: windowWidth }]}
           resizeMode="cover"
         />
@@ -150,7 +219,7 @@ export default function InfoMisDenuncias() {
             <Text style={styles.sectionTitle}>Ubicación</Text>
             <Text style={styles.ubicacionText}>{direccion}</Text>
             <Text style={styles.coordenadasText}>
-              Coordenadas: {denuncia.latitud.toFixed(4)}, {denuncia.longitud.toFixed(4)}
+              Coordenadas: {typeof denuncia.latitud === 'number' ? denuncia.latitud.toFixed(4) : 'N/A'}, {typeof denuncia.longitud === 'number' ? denuncia.longitud.toFixed(4) : 'N/A'}
             </Text>
           </View>
 
@@ -319,5 +388,11 @@ const styles = StyleSheet.create({
     color: '#333',
     marginLeft: 8,
     fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
 });

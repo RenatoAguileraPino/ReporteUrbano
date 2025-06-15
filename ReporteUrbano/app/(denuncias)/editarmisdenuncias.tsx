@@ -8,52 +8,175 @@ import {
   ScrollView,
   Platform,
   Alert,
-  Image
+  Image,
+  ActivityIndicator
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Datos de ejemplo según la estructura de la BD
-const misDenunciasEjemplo = [
-  {
-    id: 1,
-    tipoDenuncia: "Bache en calle principal",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El bache tiene aproximadamente 30cm de profundidad y está causando problemas a los vehículos que pasan por la zona. Se necesita atención urgente.",
-    usuarios_id: 1,
-    latitud: -33.4489,
-    longitud: -70.6693,
-    fecha: "15/03/2024",
-    likes: 15
-  },
-  {
-    id: 2,
-    tipoDenuncia: "Poste de alumbrado caído",
-    imagen: require('../../assets/images/icon.png'),
-    descripcion: "El poste está completamente caído y representa un peligro para los peatones. Los cables están expuestos.",
-    usuarios_id: 1,
-    latitud: -33.4187,
-    longitud: -70.6062,
-    fecha: "14/03/2024",
-    likes: 8
-  }
-];
+interface Denuncia {
+  id: string;
+  tipoDenuncia: string;
+  imagen: string;
+  descripcion: string;
+  usuarios_id: string;
+  latitud: number;
+  longitud: number;
+  fecha: string;
+  likes: number;
+}
 
 export default function EditarMisDenuncias() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const [denuncia, setDenuncia] = useState(misDenunciasEjemplo.find(d => d.id === Number(id)));
-  const [tipoDenuncia, setTipoDenuncia] = useState(denuncia?.tipoDenuncia || '');
-  const [descripcion, setDescripcion] = useState(denuncia?.descripcion || '');
-  const [imagen, setImagen] = useState(denuncia?.imagen);
+  const [denuncia, setDenuncia] = useState<Denuncia | null>(null);
+  const [tipoDenuncia, setTipoDenuncia] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [imagen, setImagen] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!denuncia) {
-      Alert.alert('Error', 'Denuncia no encontrada');
+    cargarDenuncia();
+  }, [id]);
+
+  const cargarDenuncia = async () => {
+    try {
+      // Obtener el username del usuario actual
+      const username = await AsyncStorage.getItem('username');
+      console.log('Username obtenido de AsyncStorage:', username);
+
+      if (!username) {
+        Alert.alert('Error', 'No se encontró el usuario');
+        router.back();
+        return;
+      }
+
+      // Obtener el ID del usuario basado en el username
+      const userResponse = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/run-sql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sql: `SELECT id::integer as id FROM usuarios WHERE nombre = '${username}'`
+        })
+      });
+
+      const userData = await userResponse.json();
+      console.log('Respuesta de usuario completa:', JSON.stringify(userData, null, 2));
+
+      if (!userData.result || userData.result.rows.length === 0) {
+        Alert.alert('Error', 'No se encontró el ID del usuario');
+        router.back();
+        return;
+      }
+
+      const userId = userData.result.rows[0].id;
+      console.log('ID del usuario:', userId);
+
+      // Verificar la estructura de la tabla denuncia
+      const tableInfoResponse = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/run-sql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sql: `SELECT column_name, data_type, character_maximum_length 
+                FROM information_schema.columns 
+                WHERE table_name = 'denuncia'`
+        })
+      });
+
+      const tableInfo = await tableInfoResponse.json();
+      console.log('Estructura de la tabla denuncia:', JSON.stringify(tableInfo, null, 2));
+
+      // Verificar los datos de la denuncia específica
+      const denunciaInfoResponse = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/run-sql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sql: `SELECT id, usuarios_id, tipodenuncia, descripcion 
+                FROM denuncia 
+                WHERE id = '${id}'`
+        })
+      });
+
+      const denunciaInfo = await denunciaInfoResponse.json();
+      console.log('Datos de la denuncia desde SQL:', JSON.stringify(denunciaInfo, null, 2));
+
+      const response = await fetch(`https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/traerDenuncia/${id}`);
+      const data = await response.json();
+      console.log('ID de la denuncia a editar:', id);
+      console.log('Datos de la denuncia completos:', JSON.stringify(data, null, 2));
+      console.log('ID del usuario de la denuncia:', data.usuarios_id);
+      console.log('Tipo de ID del usuario de la denuncia:', typeof data.usuarios_id);
+      console.log('Tipo de ID del usuario actual:', typeof userId);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al cargar la denuncia');
+      }
+
+      // Verificar si el usuario tiene permiso para editar esta denuncia
+      console.log('Comparando IDs:', {
+        denunciaUserId: data.usuarios_id,
+        usuarioActualId: userId,
+        sonIguales: data.usuarios_id === userId,
+        denunciaUserIdTipo: typeof data.usuarios_id,
+        usuarioActualIdTipo: typeof userId
+      });
+
+      // Convertir ambos IDs a número para la comparación
+      const denunciaUserId = parseInt(data.usuarios_id);
+      const usuarioActualId = parseInt(userId);
+
+      console.log('IDs convertidos a número:', {
+        denunciaUserId,
+        usuarioActualId,
+        sonIguales: denunciaUserId === usuarioActualId
+      });
+
+      if (denunciaUserId !== usuarioActualId) {
+        console.log('IDs no coinciden:', {
+          denunciaUserId,
+          usuarioActualId
+        });
+        Alert.alert('Error', 'No tienes permiso para editar esta denuncia');
+        router.back();
+        return;
+      }
+
+      // Solo guardamos los datos necesarios
+      const denunciaData = {
+        id: data.id,
+        tipoDenuncia: data.tipodenuncia || 'Sin tipo especificado',
+        descripcion: data.descripcion || 'Sin descripción',
+        latitud: parseFloat(data.latitud) || 0,
+        longitud: parseFloat(data.longitud) || 0,
+        fecha: data.fecha || new Date().toLocaleDateString(),
+        likes: parseInt(data.likes) || 0,
+        usuarios_id: String(data.usuarios_id), // Asegurar que es string
+        imagen: `https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/denuncia/imagen/${data.id}`
+      };
+
+      console.log('Datos de denuncia procesados:', JSON.stringify(denunciaData, null, 2));
+
+      setDenuncia(denunciaData);
+      setTipoDenuncia(denunciaData.tipoDenuncia);
+      setDescripcion(denunciaData.descripcion);
+      setImagen(denunciaData.imagen);
+    } catch (error: any) {
+      console.error('Error completo:', error);
+      Alert.alert('Error', error?.message || 'Error al cargar la denuncia');
       router.back();
+    } finally {
+      setLoading(false);
     }
-  }, [denuncia]);
+  };
 
   const handleSeleccionarImagen = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -75,24 +198,109 @@ export default function EditarMisDenuncias() {
     }
   };
 
-  const handleGuardar = () => {
+  const handleGuardar = async () => {
     if (!tipoDenuncia.trim()) {
       Alert.alert('Error', 'El tipo de denuncia es requerido');
       return;
     }
 
-    // Aquí iría la lógica para guardar los cambios
-    Alert.alert(
-      'Éxito',
-      'Denuncia actualizada correctamente',
-      [
-        {
-          text: 'OK',
-          onPress: () => router.back()
-        }
-      ]
-    );
+    if (!denuncia) {
+      Alert.alert('Error', 'No se encontró la denuncia');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Obtener el username del usuario actual
+      const username = await AsyncStorage.getItem('username');
+      if (!username) {
+        throw new Error('No se encontró el usuario');
+      }
+
+      // Obtener el ID del usuario basado en el username
+      const userResponse = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/run-sql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sql: `SELECT id::integer as id FROM usuarios WHERE nombre = '${username}'`
+        })
+      });
+
+      const userData = await userResponse.json();
+      if (!userData.result || userData.result.rows.length === 0) {
+        throw new Error('No se encontró el ID del usuario');
+      }
+
+      const userId = userData.result.rows[0].id;
+      console.log('ID del usuario actual:', userId);
+
+      const formData = new FormData();
+      formData.append('tipoDenuncia', tipoDenuncia);
+      formData.append('descripcion', descripcion || '');
+      formData.append('usuarios_id', String(userId));
+
+      if (typeof imagen === 'string' && imagen.startsWith('file://')) {
+        const imageUri = imagen;
+        const imageName = imageUri.split('/').pop() || 'image.jpg';
+        const match = /\.(\w+)$/.exec(imageName);
+        const imageType = match ? `image/${match[1]}` : 'image/jpeg';
+
+        formData.append('imagen', {
+          uri: imageUri,
+          name: imageName,
+          type: imageType,
+        } as any);
+      }
+
+      console.log('Enviando datos:', {
+        tipoDenuncia,
+        descripcion,
+        usuarios_id: String(userId),
+        id: id
+      });
+
+      const response = await fetch(`https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/actualizarDenuncia/${id}`, {
+        method: 'PUT',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const data = await response.json();
+      console.log('Respuesta del servidor:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al actualizar la denuncia');
+      }
+
+      Alert.alert(
+        'Éxito',
+        'Denuncia actualizada correctamente',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.back()
+          }
+        ]
+      );
+    } catch (error: any) {
+      console.error('Error completo:', error);
+      Alert.alert('Error', error?.message || 'Error al actualizar la denuncia');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
 
   if (!denuncia) {
     return null;
@@ -117,7 +325,7 @@ export default function EditarMisDenuncias() {
             onPress={handleSeleccionarImagen}
           >
             <Image 
-              source={typeof imagen === 'string' ? { uri: imagen } : imagen} 
+              source={{ uri: imagen || undefined }} 
               style={styles.image}
               resizeMode="cover"
             />
@@ -134,6 +342,7 @@ export default function EditarMisDenuncias() {
               value={tipoDenuncia}
               onChangeText={setTipoDenuncia}
               placeholder="Ej: Bache, Poste caído, etc."
+              defaultValue={denuncia?.tipoDenuncia}
             />
           </View>
 
@@ -147,14 +356,20 @@ export default function EditarMisDenuncias() {
               multiline
               numberOfLines={4}
               textAlignVertical="top"
+              defaultValue={denuncia?.descripcion}
             />
           </View>
 
           <TouchableOpacity 
-            style={styles.guardarButton}
+            style={[styles.guardarButton, saving && styles.guardarButtonDisabled]}
             onPress={handleGuardar}
+            disabled={saving}
           >
-            <Text style={styles.guardarButtonText}>Guardar Cambios</Text>
+            {saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.guardarButtonText}>Guardar Cambios</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -246,5 +461,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  guardarButtonDisabled: {
+    opacity: 0.7,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
 }); 

@@ -99,12 +99,14 @@ const MisDenuncias: React.FC<MisDenunciasProps> = ({
       setLoading(true);
       setError(null);
 
-      // Obtener el username del AsyncStorage
+      // Obtener el username del usuario actual
       const username = await AsyncStorage.getItem('username');
       if (!username) {
         setError('No se encontró el usuario');
         return;
       }
+
+      console.log('Username del usuario actual:', username);
 
       const response = await fetch(
         'https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/traerDenunciasCercanas?lat=-33.4986096&lon=-70.6867968&distancia=1000',
@@ -124,9 +126,29 @@ const MisDenuncias: React.FC<MisDenunciasProps> = ({
       const data: DenunciaBackend[] = await response.json();
       console.log('Datos recibidos:', data); // Para debug
       
+      // Obtener el ID del usuario basado en el username
+      const userResponse = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/run-sql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sql: `SELECT id FROM usuarios WHERE nombre = '${username}'`
+        })
+      });
+
+      const userData = await userResponse.json();
+      if (!userData.result || userData.result.rows.length === 0) {
+        setError('No se encontró el ID del usuario');
+        return;
+      }
+
+      const userId = userData.result.rows[0].id;
+      console.log('ID del usuario:', userId);
+      
       // Filtrar las denuncias por el usuarios_id
       const denunciasUsuario = data
-        .filter(denuncia => denuncia.usuarios_id === 100) // Por ahora hardcodeamos el ID 100 para pruebas
+        .filter(denuncia => denuncia.usuarios_id === userId)
         .map(denuncia => ({
           id: denuncia.id,
           tipoDenuncia: denuncia.tipodenuncia || '',
@@ -138,6 +160,7 @@ const MisDenuncias: React.FC<MisDenunciasProps> = ({
           imagen: `https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/denuncia/imagen/${denuncia.id}`
         }));
 
+      console.log('Denuncias del usuario:', denunciasUsuario);
       setDenuncias(denunciasUsuario);
 
       // Cargar direcciones para cada denuncia

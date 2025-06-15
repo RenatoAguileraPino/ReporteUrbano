@@ -111,18 +111,23 @@ const DenunciasCercanas: React.FC<DenunciasCercanasProps> = ({
         throw new Error('Formato de datos inválido');
       }
 
-      setDenuncias(data.map((denuncia: any) => ({
-        id: denuncia.id,
-        tipoDenuncia: denuncia.tipodenuncia,
-        descripcion: denuncia.descripcion,
-        usuarios_id: denuncia.usuarios_id,
-        latitud: parseFloat(denuncia.latitud),
-        longitud: parseFloat(denuncia.longitud),
-        fecha: new Date(denuncia.fecha_denuncia).toLocaleDateString(),
-        likes: denuncia.likes || 0,
-        liked: false,
-        imagen: `https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/denuncia/imagen/${denuncia.id}`
-      })));
+      // Ordenar las denuncias por número de likes de mayor a menor
+      const denunciasOrdenadas = data
+        .map((denuncia: any) => ({
+          id: denuncia.id,
+          tipoDenuncia: denuncia.tipodenuncia,
+          descripcion: denuncia.descripcion,
+          usuarios_id: denuncia.usuarios_id,
+          latitud: parseFloat(denuncia.latitud),
+          longitud: parseFloat(denuncia.longitud),
+          fecha: new Date(denuncia.fecha_denuncia).toLocaleDateString(),
+          likes: denuncia.likes || 0,
+          liked: false,
+          imagen: `https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/denuncia/imagen/${denuncia.id}`
+        }))
+        .sort((a, b) => b.likes - a.likes); // Ordenar por likes de mayor a menor
+
+      setDenuncias(denunciasOrdenadas);
     } catch (error) {
       console.error('Error detallado al obtener denuncias:', error);
       setError(error instanceof Error ? error.message : 'Error al cargar las denuncias');
