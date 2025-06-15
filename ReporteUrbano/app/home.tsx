@@ -8,7 +8,7 @@ import VerDenunciasModal from './components/VerDenunciasModal';
 import DenunciasCercanas from './components/DenunciasCercanas';
 import MisDenuncias from './components/MisDenuncias';
 import DenunciasMapa from './components/DenunciasMapa';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 
@@ -144,6 +144,16 @@ export default function Home() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('username');
+      router.replace('/login');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+      alert('Error al cerrar sesión');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -154,6 +164,14 @@ export default function Home() {
           />
         </View>
         
+        {/* Coloca el botón de logout antes de locationBarContainer */}
+        <TouchableOpacity 
+          style={styles.logoutButton} 
+          onPress={handleLogout}
+        >
+          <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
+        </TouchableOpacity>
+
         <View style={styles.locationBarContainer}>
           <LocationBar location={locationName} />
         </View>
@@ -315,5 +333,26 @@ const styles = StyleSheet.create({
   map: {
     width: '100%',
     height: '100%',
+  },
+  logoutButton: {
+    position: 'absolute',
+    left: 20,
+    top: Platform.OS === 'ios' ? 110 : 95, // Aumentamos los valores de 50 y 30 a 80 y 60
+    zIndex: 2000,
+    padding: 12,
+    backgroundColor: 'white',
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 6,
+    width: 45,
+    height: 45,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
