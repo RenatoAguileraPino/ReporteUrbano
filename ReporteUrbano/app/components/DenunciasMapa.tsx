@@ -5,6 +5,7 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 
+
 interface Denuncia {
   id: number;
   tipoDenuncia: string;
@@ -194,6 +195,14 @@ const DenunciasMapa = forwardRef<DenunciasMapaRef, DenunciasMapaProps>(({ initia
           />
         ))}
       </MapView>
+
+      {/* Botón de recarga */}
+      <TouchableOpacity 
+        style={styles.reloadButton}
+        onPress={cargarDenuncias}
+      >
+        <MaterialIcons name="refresh" size={24} color="white" />
+      </TouchableOpacity>
 
       {selectedDenuncia && (
         <View style={styles.cardContainer}>
@@ -398,6 +407,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  reloadButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    right: 20,
+    backgroundColor: '#007AFF',
+    borderRadius: 30,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });
 
