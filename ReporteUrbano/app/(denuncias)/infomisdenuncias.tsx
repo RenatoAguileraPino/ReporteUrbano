@@ -151,21 +151,96 @@ export default function InfoMisDenuncias() {
     });
   };
 
-  const handleEliminar = () => {
+  const handleEliminar = async () => {
     Alert.alert(
-      "Eliminar Denuncia",
-      "¿Estás seguro de que quieres eliminar esta denuncia?",
+      "Confirmar eliminación",
+      "¿Estás seguro de que deseas eliminar esta denuncia?",
       [
         {
           text: "Cancelar",
-          style: "cancel"
+          style: "cancel",
+          onPress: () => console.log("Eliminación cancelada")
         },
         {
-          text: "Eliminar",
+          text: "Sí, eliminar",
           style: "destructive",
-          onPress: () => {
-            // Aquí iría la lógica para eliminar la denuncia
-            router.back();
+          onPress: async () => {
+            try {
+              setLoading(true);
+              console.log('Iniciando proceso de eliminación...');
+              
+              const username = await AsyncStorage.getItem('username');
+              console.log('Username obtenido:', username);
+              
+              if (!username) {
+                Alert.alert('Error', 'No se pudo obtener la información del usuario');
+                return;
+              }
+
+              // Obtener el ID del usuario
+              const userResponse = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/run-sql', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  sql: `SELECT id FROM usuarios WHERE nombre = '${username}'`
+                })
+              });
+
+              const userData = await userResponse.json();
+              if (!userData.result || userData.result.rows.length === 0) {
+                Alert.alert('Error', 'No se encontró el ID del usuario');
+                return;
+              }
+
+              const usuarios_id = userData.result.rows[0].id;
+
+              // Llamar al endpoint de eliminación
+              console.log('Enviando solicitud de eliminación...');
+              const deleteUrl = `https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/eliminarDenuncia/${id}`;
+              console.log('URL de eliminación:', deleteUrl);
+              
+              const response = await fetch(deleteUrl, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ usuarios_id })
+              });
+
+              const data = await response.json();
+              console.log('Datos de respuesta:', JSON.stringify(data, null, 2));
+
+              if (!data.success) {
+                throw new Error(data.message || 'Error al eliminar la denuncia');
+              }
+
+              console.log('Eliminación exitosa, actualizando UI...');
+              // Esperar a que el usuario confirme antes de continuar
+              await new Promise<void>((resolve) => {
+                Alert.alert(
+                  'Éxito',
+                  data.message || 'Denuncia eliminada correctamente',
+                  [{
+                    text: 'Aceptar',
+                    onPress: () => resolve()
+                  }]
+                );
+              });
+              
+              router.back();
+            } catch (error) {
+              console.error('Error completo al eliminar la denuncia:', error);
+              Alert.alert(
+                'Error', 
+                error instanceof Error 
+                  ? `Error al eliminar la denuncia: ${error.message}`
+                  : 'Error al eliminar la denuncia'
+              );
+            } finally {
+              setLoading(false);
+            }
           }
         }
       ]

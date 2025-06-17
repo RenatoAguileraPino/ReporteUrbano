@@ -40,7 +40,7 @@ const EliminarMisDenuncias: React.FC<EliminarMisDenunciasProps> = ({
     try {
       setLoading(true);
       console.log('Iniciando proceso de eliminación...');
-
+      
       const username = await AsyncStorage.getItem('username');
       console.log('Username obtenido:', username);
       
@@ -49,32 +49,60 @@ const EliminarMisDenuncias: React.FC<EliminarMisDenunciasProps> = ({
         return;
       }
 
+      // Obtener el ID del usuario
+      console.log('Obteniendo ID del usuario...');
+      const userResponse = await fetch('https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/run-sql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sql: `SELECT id FROM usuarios WHERE nombre = '${username}'`
+        })
+      });
+
+      const userData = await userResponse.json();
+      console.log('Respuesta de usuario:', JSON.stringify(userData, null, 2));
+      
+      if (!userData.result || userData.result.rows.length === 0) {
+        Alert.alert('Error', 'No se encontró el ID del usuario');
+        return;
+      }
+
+      const usuarios_id = userData.result.rows[0].id;
+      console.log('ID del usuario:', usuarios_id);
+      console.log('ID de la denuncia a eliminar:', id);
+
       // Llamar al endpoint de eliminación
       console.log('Enviando solicitud de eliminación...');
       const deleteUrl = `https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/eliminarDenuncia/${id}`;
       console.log('URL de eliminación:', deleteUrl);
-
+      
       const response = await fetch(deleteUrl, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
+        body: JSON.stringify({ 
+          usuarios_id: parseInt(usuarios_id)
+        })
       });
 
       console.log('Estado de la respuesta:', response.status);
+      console.log('Headers de la respuesta:', JSON.stringify(response.headers, null, 2));
       
       const data = await response.json();
       console.log('Datos de respuesta:', JSON.stringify(data, null, 2));
 
-      if (!data.success) {
-        throw new Error(data.message || 'Error al eliminar la denuncia');
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al eliminar la denuncia');
       }
 
       console.log('Eliminación exitosa, actualizando UI...');
       await onConfirm(); // Esperar a que se complete la actualización
       onClose(); // Cerrar el modal
-      Alert.alert('Éxito', data.message || 'Denuncia eliminada correctamente');
-
+      Alert.alert('Éxito', 'Denuncia eliminada correctamente');
     } catch (error) {
       console.error('Error completo al eliminar la denuncia:', error);
       console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace available');
