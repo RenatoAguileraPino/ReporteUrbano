@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   },
   reloadButton: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 40,
+    bottom: Platform.OS === 'ios' ? 120 : 110,
     right: 20,
     backgroundColor: '#007AFF',
     borderRadius: 30,

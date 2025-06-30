@@ -61,7 +61,7 @@ export default function EditarMisDenuncias() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          sql: `SELECT id::integer as id FROM usuarios WHERE nombre = '${username}'`
+          sql: `SELECT id FROM usuarios WHERE nombre = '${username}'`
         })
       });
 
@@ -111,11 +111,6 @@ export default function EditarMisDenuncias() {
 
       const response = await fetch(`https://reporte-urbano-backend-8b4c660c5c74.herokuapp.com/traerDenuncia/${id}`);
       const data = await response.json();
-      console.log('ID de la denuncia a editar:', id);
-      console.log('Datos de la denuncia completos:', JSON.stringify(data, null, 2));
-      console.log('ID del usuario de la denuncia:', data.usuarios_id);
-      console.log('Tipo de ID del usuario de la denuncia:', typeof data.usuarios_id);
-      console.log('Tipo de ID del usuario actual:', typeof userId);
 
       if (!response.ok) {
         throw new Error(data.error || 'Error al cargar la denuncia');
